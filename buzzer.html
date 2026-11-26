@@ -4,26 +4,27 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Face-Off Buzzer</title>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=5" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<script src="firebase-config.js?v=6" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 <style>
-  :root { --gold:#ffcf3f; --team0:#ff4d4d; --team1:#25d0c4; --red:#e8142b; --c:#3b7cff; }
+  :root { --gold:#f7c548; --team0:#ff5a4e; --team1:#1fd1c1; --red:#ff2d3f; --c:#1f5bff; --ivory:#fff8e7;
+    --display:'Bungee', Impact, sans-serif; --text:'Barlow Condensed', 'Arial Narrow', sans-serif; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
-  body { background: radial-gradient(ellipse at 50% 35%, #1f63e0 0%, #0a2a76 45%, #020820 100%); color: #fff;
-    font-family: 'Oswald', Impact, sans-serif; overflow: hidden; user-select: none; }
+  body { background: radial-gradient(120% 90% at 50% 0%, #141f6b 0%, #0a1240 45%, #050a26 100%); color: var(--ivory);
+    font-family: var(--text); font-size: 19px; overflow: hidden; user-select: none; }
   .hidden { display: none !important; }
-  .logo { font-family: 'Anton', Impact, sans-serif; font-size: 44px; color: var(--gold); text-align: center; letter-spacing: .03em;
-    text-shadow: 0 4px 0 #5a3a00, 0 0 18px rgba(255,200,60,.4); }
+  .logo { font-family: var(--display); font-size: 40px; color: var(--gold); text-align: center;
+    text-shadow: 0 2px 0 #e3a92a, 0 4px 0 #9a6a12, 0 6px 0 #6b4708, 0 0 24px rgba(247,197,72,.35); }
   .wrap { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px; }
-  .card { background: rgba(0,0,0,.4); border: 3px solid var(--gold); border-radius: 16px; padding: 22px; width: min(440px, 94vw); }
+  .card { background: rgba(16,28,98,.85); border: 0; box-shadow: inset 0 0 0 3px rgba(247,197,72,.7); border-radius: 18px; padding: 22px; width: min(440px, 94vw); }
   label { display: block; font-size: 15px; letter-spacing: .1em; opacity: .8; margin: 12px 0 6px; }
-  input { width: 100%; font: 700 34px 'Anton', Impact, sans-serif; letter-spacing: .3em; text-align: center; text-transform: uppercase;
+  input { width: 100%; font: 700 34px var(--display); letter-spacing: .3em; text-align: center; text-transform: uppercase;
     padding: 8px; border-radius: 10px; border: 2px solid #4a6cc0; background: #020c2c; color: #fff; }
-  input#nameIn { font: 22px 'Oswald', sans-serif; letter-spacing: .05em; text-transform: none; }
-  button { font-family: 'Oswald', sans-serif; font-size: 20px; letter-spacing: .05em; padding: 12px 18px; border-radius: 10px; cursor: pointer;
+  input#nameIn { font: 22px var(--text); letter-spacing: .05em; text-transform: none; }
+  button { font-family: var(--text); font-size: 20px; letter-spacing: .05em; padding: 12px 18px; border-radius: 10px; cursor: pointer;
     border: 2px solid var(--gold); background: linear-gradient(#ffd863, #b07d0a); color: #2a1a00; font-weight: 700; width: 100%; margin-top: 16px; }
   .err { color: #ffb3b3; margin-top: 12px; min-height: 20px; font-size: 16px; }
   details { margin-top: 14px; font-size: 14px; opacity: .8; }
@@ -42,9 +43,9 @@
   #q { font-size: 22px; text-align: center; max-width: 80vw; opacity: .85; min-height: 30px; }
   #big {
     width: min(56vh, 80vw); height: min(56vh, 80vw); border-radius: 50%; display: grid; place-items: center; text-align: center;
-    font-family: 'Anton', Impact, sans-serif; font-size: min(9vh, 12vw); line-height: 1.05; cursor: pointer; padding: 6%;
-    background: radial-gradient(circle at 35% 30%, #fff5 0, transparent 35%), radial-gradient(circle, #3a3f55, #15182a);
-    border: 10px solid #666a80; box-shadow: 0 2vh 0 #0008, inset 0 -2vh 4vh #0006; transition: transform .08s;
+    font-family: var(--display); font-size: min(9vh, 12vw); line-height: 1.05; cursor: pointer; padding: 6%;
+    background: radial-gradient(circle at 35% 30%, #fff4 0, transparent 35%), radial-gradient(circle, #2a3366, #0b1040);
+    border: 10px solid #3a4590; box-shadow: 0 2vh 0 #0008, inset 0 -2vh 4vh #0006; transition: transform .08s;
   }
   #big.armed { background: radial-gradient(circle at 35% 30%, #fff8 0, transparent 35%), radial-gradient(circle, var(--c), #000 140%);
     border-color: #fff; animation: throb .8s ease-in-out infinite; }
@@ -93,7 +94,7 @@
   <div class="hint">Press ANY key (or click the button) to buzz in</div>
 </div>
 
-<script src="common.js?v=5"></script>
+<script src="common.js?v=6"></script>
 <script>
 (() => {
   const F = window.FFO, { FB, store } = F;
@@ -150,6 +151,7 @@
   function start() {
     if (joined) return;
     joined = true;
+    F.keepAwake();
     FB.onConnected(on => {
       $('#conn').className = on ? 'on' : '';
       $('#conn span').textContent = on ? 'connected' : 'reconnecting…';

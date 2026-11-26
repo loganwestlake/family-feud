@@ -29,7 +29,7 @@ jobs:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
         run: |
           mkdir _site
-          cp *.html *.js *.css .nojekyll _site/
+          cp -r *.html *.js *.css .nojekyll remote assets _site/
           python3 - <<'PY'
           import json, os, re
           raw = os.environ.get("FIREBASE_CONFIG", "").strip()

@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a1240">
+<title>Face-Off Remote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="../firebase-config.js?v=6" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<style>
+  :root { --night:#0a1240; --night-2:#141f6b; --ink:#050a26; --card:#101c62; --line:#26388f; --gold:#f7c548; --gold-lt:#fff1b8;
+    --ivory:#fff8e7; --muted:#a9b4ee; --team0:#ff5a4e; --team1:#1fd1c1; --red:#ff2d3f; --green:#2ee86b;
+    --display:'Bungee', Impact, sans-serif; --text:'Barlow Condensed', 'Arial Narrow', sans-serif; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background: var(--ink); }
+  body { margin: 0; min-height: 100vh; color: var(--ivory); font-family: var(--text); font-size: 19px;
+    background: radial-gradient(130% 60% at 50% 0%, var(--night-2), var(--night) 50%, var(--ink));
+    padding: max(12px, env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom)); }
+  .hidden { display: none !important; }
+  :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  button { font-family: var(--text); font-size: 19px; font-weight: 700; color: var(--ivory); border: 0; border-radius: 12px; padding: 13px 12px;
+    background: linear-gradient(#2a56d8, #11308c); box-shadow: inset 0 0 0 2px #6f93ff; cursor: pointer; width: 100%; touch-action: manipulation; }
+  button:active { transform: scale(.97); filter: brightness(1.2); }
+  button.gold { background: linear-gradient(#ffe07a, #c48d1c); color: #2a1a00; box-shadow: 0 4px 0 #6b4708; }
+  button.bad { background: linear-gradient(#d1213a, #6b0a17); box-shadow: inset 0 0 0 2px #ff8f9b; }
+  button.ghost { background: transparent; box-shadow: inset 0 0 0 2px var(--line); color: var(--muted); }
+  button.t0 { box-shadow: inset 0 0 0 3px var(--team0); }
+  button.t1 { box-shadow: inset 0 0 0 3px var(--team1); }
+  button:disabled { opacity: .45; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+  .card { background: rgba(16,28,98,.85); border-radius: 18px; padding: 16px; margin-top: 14px; box-shadow: inset 0 0 0 1px var(--line); }
+  h2 { margin: 0 0 8px; font-size: 17px; font-weight: 600; color: var(--muted); }
+
+  .top { display: flex; justify-content: space-between; align-items: center; }
+  .brand { font-family: var(--display); color: var(--gold); font-size: 22px; text-shadow: 0 2px 0 #6b4708; }
+  #conn { font-size: 15px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  #conn i { width: 9px; height: 9px; border-radius: 50%; background: #777; }
+  #conn.on i { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  /* join */
+  #join { max-width: 420px; margin: 8vh auto 0; text-align: center; }
+  #join .brand { font-size: 34px; }
+  #join p { color: var(--muted); }
+  #join label { display: block; text-align: left; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
+  #join input { width: 100%; font-family: var(--display); font-size: 34px; letter-spacing: .3em; text-align: center; text-transform: uppercase;
+    padding: 10px; border-radius: 12px; border: 2px solid var(--line); background: var(--ink); color: var(--ivory); }
+  #join input:focus { border-color: var(--gold); outline: none; }
+  #join button { margin-top: 20px; font-size: 22px; }
+  #joinErr { color: #ffb3b3; min-height: 24px; margin-top: 12px; }
+
+  /* buzz card: the most important thing on the phone */
+  #buzz { margin-top: 12px; border-radius: 20px; padding: 18px 14px; text-align: center; background: var(--card); box-shadow: inset 0 0 0 2px var(--line); }
+  #buzz .big { font-family: var(--display); font-size: 30px; line-height: 1.1; }
+  #buzz .small { font-size: 18px; margin-top: 6px; color: var(--muted); }
+  #buzz.armed { box-shadow: inset 0 0 0 3px var(--gold); animation: pulse 1s infinite; }
+  #buzz.t0 { background: linear-gradient(#ff7a70, var(--team0)); color: #1a0508; }
+  #buzz.t1 { background: linear-gradient(#5ef0e2, var(--team1)); color: #03201d; }
+  #buzz.t0 .small, #buzz.t1 .small { color: inherit; opacity: .85; }
+  @keyframes pulse { 50% { box-shadow: inset 0 0 0 3px transparent; } }
+
+  .meta { font-size: 16px; color: var(--muted); }
+  .meta.hot { color: var(--gold); }
+  .q { font-size: 24px; font-weight: 700; line-height: 1.2; margin: 4px 0 12px; }
+  .ans { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; text-align: left; margin-top: 8px; padding: 12px;
+    background: #0c1a5c; box-shadow: inset 0 0 0 2px var(--line); }
+  .ans .n { font-family: var(--display); font-size: 18px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #1f5bff; }
+  .ans .t { font-size: 21px; text-transform: uppercase; }
+  .ans .p { font-family: var(--display); font-size: 20px; color: var(--gold-lt); }
+  .ans.on { background: #0f3b2a; box-shadow: inset 0 0 0 2px var(--green); }
+  .ans.on .n { background: var(--green); color: #052b14; }
+  .ans.on .t::after { content: '  ✓ on the board'; font-size: 14px; color: var(--green); text-transform: none; }
+  .ans.p1said { box-shadow: inset 0 0 0 2px var(--gold); }
+  .ans.p1said .t::after { content: '  player 1 said this'; font-size: 14px; color: var(--gold); text-transform: none; }
+  .hint { font-size: 15px; color: var(--muted); margin-top: 8px; }
+
+  .bankline { display: flex; justify-content: space-between; align-items: center; }
+  .bankline b { font-family: var(--display); font-size: 32px; color: var(--gold-lt); }
+  .xs { font-family: var(--display); color: var(--red); font-size: 26px; letter-spacing: 6px; min-width: 70px; text-align: right; }
+  .scores { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center; }
+  .scores .nm { font-weight: 700; font-size: 18px; border-bottom: 3px solid var(--c); padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .scores .s { font-family: var(--display); font-size: 34px; }
+  .scores .ctl { font-size: 14px; color: var(--gold); min-height: 18px; }
+
+  /* lightning */
+  .lgtop { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+  .clock { font-family: var(--display); font-size: 44px; width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--ink); box-shadow: inset 0 0 0 5px var(--gold); }
+  .clock.low { color: var(--red); box-shadow: inset 0 0 0 5px var(--red); }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .seg button.on { background: linear-gradient(#ffe07a, #c48d1c); color: #2a1a00; box-shadow: none; }
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
+  .steps button { padding: 9px 0; font-family: var(--display); font-size: 17px; }
+  .steps button.cur { box-shadow: inset 0 0 0 3px var(--gold); }
+  .steps button.done { background: #0f3b2a; box-shadow: inset 0 0 0 2px var(--green); }
+  .steps button.cur.done { box-shadow: inset 0 0 0 3px var(--gold); }
+  .said { margin-top: 10px; font-size: 18px; }
+  .said b { color: var(--gold-lt); }
+  #dup { margin-top: 10px; padding: 12px; border-radius: 12px; background: var(--red); color: #fff; font-weight: 700; text-align: center; font-size: 21px; }
+  .nomatch { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+  .nomatch input { font: 600 19px var(--text); padding: 10px; border-radius: 12px; border: 2px solid var(--line); background: var(--ink); color: var(--ivory); min-width: 0; }
+  .nomatch button { width: auto; }
+  .revrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-top: 8px; font-size: 18px; }
+  .revrow button { width: auto; padding: 9px 14px; font-size: 16px; }
+  .revrow .done { color: var(--green); font-weight: 700; }
+  .total { font-family: var(--display); font-size: 30px; color: var(--gold-lt); }
+</style>
+</head>
+<body>
+
+<section id="join" class="hidden">
+  <div class="brand">Face-Off Remote</div>
+  <p>Type the room code and PIN shown on the TV.</p>
+  <label for="roomIn">Room code</label><input id="roomIn" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD">
+  <label for="pinIn">PIN</label><input id="pinIn" maxlength="4" inputmode="numeric" type="password" autocomplete="off" placeholder="••••">
+  <button class="gold" id="joinBtn">Connect to the TV</button>
+  <div id="joinErr"></div>
+</section>
+
+<section id="app" class="hidden">
+  <div class="top"><div class="brand">Face-Off</div><div id="conn"><i></i><span>connecting…</span></div></div>
+
+  <!-- ===== main game ===== -->
+  <div id="mainView">
+    <div id="buzz"><div class="big">—</div><div class="small"></div></div>
+    <div class="row"><button class="gold" data-cmd="arm">⚡ Arm buzzers</button><button class="bad" data-cmd="x1">✕ Face-off miss</button></div>
+
+    <div class="card">
+      <div class="meta" id="roundMeta"></div>
+      <div class="q" id="question"></div>
+      <div id="answers"></div>
+      <div class="hint">Tap an answer to flip it on the TV. Tap again to hide it.</div>
+    </div>
+
+    <div class="card">
+      <div class="bankline"><span>Bank</span><b id="bank">0</b><span class="xs" id="xs"></span></div>
+      <div class="row"><button class="bad" data-cmd="strike">✕ Strike</button><button class="ghost" data-cmd="clearStrikes">Clear strikes</button></div>
+    </div>
+
+    <div class="card">
+      <div class="scores">
+        <div style="--c:var(--team0)"><div class="nm" id="n0"></div><div class="s" id="s0">0</div><div class="ctl" id="c0"></div></div>
+        <div style="--c:var(--team1)"><div class="nm" id="n1"></div><div class="s" id="s1">0</div><div class="ctl" id="c1"></div></div>
+      </div>
+      <div class="row"><button class="t0" data-cmd="control" data-team="0">Give control</button><button class="t1" data-cmd="control" data-team="1">Give control</button></div>
+      <div class="row"><button class="gold" data-cmd="award" data-team="0">Award bank</button><button class="gold" data-cmd="award" data-team="1">Award bank</button></div>
+      <div class="row">
+        <div class="row" style="margin:0"><button class="t0" data-cmd="adjust" data-team="0" data-d="-5">−5</button><button class="t0" data-cmd="adjust" data-team="0" data-d="5">+5</button></div>
+        <div class="row" style="margin:0"><button class="t1" data-cmd="adjust" data-team="1" data-d="-5">−5</button><button class="t1" data-cmd="adjust" data-team="1" data-d="5">+5</button></div>
+      </div>
+    </div>
+
+    <div class="row3"><button data-cmd="prev">◀ Prev</button><button class="gold" data-cmd="next" style="grid-column: span 2">Next round ▶</button></div>
+    <div class="row"><button class="ghost" data-cmd="revealAll">Reveal the rest</button><button class="ghost" data-cmd="lgNew">⚡ Lightning Round</button></div>
+  </div>
+
+  <!-- ===== lightning round ===== -->
+  <div id="lgView" class="hidden">
+    <div class="card">
+      <div class="lgtop">
+        <div class="clock" id="clock">20</div>
+        <div>
+          <div class="seg"><button data-cmd="lgPlayer" data-p="1" id="pl1">Player 1</button><button data-cmd="lgPlayer" data-p="2" id="pl2">Player 2</button></div>
+          <div class="row3" style="margin-top:8px"><button data-cmd="lgTimer" data-s="20">20s</button><button data-cmd="lgTimer" data-s="25">25s</button><button class="ghost" data-cmd="lgTimer" data-s="0">Stop</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="steps" id="steps"></div>
+      <div class="meta" id="lgMeta"></div>
+      <div class="q" id="lgQ"></div>
+      <div id="dup" class="hidden">Player 1 already said that. Ask for another answer!</div>
+      <div id="choices"></div>
+      <div class="nomatch"><input id="otherIn" placeholder="Not on the list? Type what they said"><button class="ghost" id="otherBtn">0 points</button></div>
+      <div class="said" id="said"></div>
+    </div>
+
+    <div class="card">
+      <div class="bankline"><span>Total</span><span class="total" id="lgTotal">0</span><span class="meta" id="lgGoal"></span></div>
+      <button class="gold" style="margin-top:10px" data-cmd="lgReveal" id="revealNext">Reveal next answer</button>
+      <div id="revList"></div>
+      <button class="ghost hidden" style="margin-top:10px" id="showP1"></button>
+    </div>
+
+    <div class="row"><button class="ghost" data-cmd="lgNew">New questions</button><button class="gold" data-cmd="mode" data-m="main">Back to main game</button></div>
+  </div>
+
+  <button class="ghost" id="leave" style="margin-top:22px">Leave this game</button>
+</section>
+
+<script src="../common.js?v=6"></script>
+<script>
+(() => {
+  const F = window.FFO, { FB, store } = F;
+  const $ = s => document.querySelector(s);
+  let st = null, lgQ = 0, lastDup = 0;
+
+  // ---- join: room + PIN, from the TV's QR code (#fragment) or typed
+  let saved = store.get('host', null);
+  let hashRoom = '';
+  if (location.hash.length > 1) {
+    const h = location.hash.slice(1);
+    const m = h.match(/room=([A-Za-z]{4})/);
+    if (m) hashRoom = m[1].toUpperCase();
+    else { try { const d = F.dec(h); if (d.r && d.p) { saved = { room: d.r, pin: d.p }; store.set('host', saved); } } catch {} }
+    history.replaceState(null, '', location.pathname);
+  }
+  $('#roomIn').addEventListener('input', e => (e.target.value = F.cleanRoom(e.target.value)));
+  $('#pinIn').addEventListener('input', e => (e.target.value = F.cleanPin(e.target.value)));
+  [$('#roomIn'), $('#pinIn')].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') join(); }));
+  $('#joinBtn').onclick = join;
+
+  function showJoin(msg = '', room = '') {
+    $('#app').classList.add('hidden'); $('#join').classList.remove('hidden');
+    $('#joinErr').textContent = msg;
+    $('#roomIn').value = room || hashRoom || (saved && saved.room) || '';
+    (F.validRoom($('#roomIn').value) ? $('#pinIn') : $('#roomIn')).focus();
+  }
+  if (saved && F.validRoom(saved.room) && F.validPin(saved.pin) && (!hashRoom || hashRoom === saved.room)) connect(saved.room, saved.pin);
+  else showJoin();
+
+  function join() {
+    const room = F.cleanRoom($('#roomIn').value), pin = F.cleanPin($('#pinIn').value);
+    if (!F.validRoom(room)) return ($('#joinErr').textContent = 'The room code is 4 letters.');
+    if (!F.validPin(pin)) return ($('#joinErr').textContent = 'The PIN is 4 digits.');
+    connect(room, pin);
+  }
+
+  async function connect(room, pin) {
+    const err = FB.init(F.getConfig());
+    if (err) return showJoin(err === 'NO_CONFIG' ? 'This website has no Firebase project set up.' : err, room);
+    FB.join(room, pin);
+    $('#joinErr').textContent = 'Connecting…';
+    try {
+      const snap = await Promise.race([FB.ref('state').once('value'), new Promise((_, rej) => setTimeout(() => rej(new Error('Timed out. Check your internet connection.')), 10000))]);
+      if (!snap.exists()) { store.set('host', null); return showJoin('No game found. Check the room code and PIN on the TV.', room); }
+    } catch (e) { return showJoin(F.friendlyError(e), room); }
+    store.set('host', { room, pin });
+    $('#join').classList.add('hidden'); $('#app').classList.remove('hidden');
+    FB.onConnected(on => { $('#conn').className = on ? 'on' : ''; $('#conn span').textContent = (on ? 'Room ' : 'Reconnecting… ') + room; });
+    FB.ref('state').on('value', s => { st = s.val(); render(); }, e => showJoin(F.friendlyError(e), room));
+    F.keepAwake();
+  }
+  $('#leave').onclick = () => { store.set('host', null); location.reload(); };
+
+  // ---- commands to the TV
+  function send(cmd) {
+    cmd.ts = Date.now();
+    FB.ref('commands').push(F.clean(cmd));
+    if (navigator.vibrate) navigator.vibrate(15);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-cmd]');
+    if (!b) return;
+    const c = { t: b.dataset.cmd, team: b.dataset.team, d: b.dataset.d ? +b.dataset.d : undefined, i: b.dataset.i, s: b.dataset.s, p: b.dataset.p, m: b.dataset.m, q: b.dataset.q, a: b.dataset.a };
+    if (c.t === 'lgNew' && st && st.mode === 'main' && !confirm('Switch the TV to the Lightning Round?')) return;
+    if (c.t === 'lgAnswer') { c.q = lgQ; c.p = lgPlayer(); }
+    if (c.t === 'lgReveal' && b.dataset.q == null) { c.p = lgPlayer(); delete c.q; }
+    send(c);
+    if (c.t === 'lgAnswer') advance();
+    if (c.t === 'lgPlayer') lgQ = 0;
+  });
+  $('#otherBtn').onclick = () => {
+    send({ t: 'lgAnswer', q: lgQ, p: lgPlayer(), a: -1, text: $('#otherIn').value.trim() || 'No answer' });
+    $('#otherIn').value = ''; advance();
+  };
+  $('#showP1').onclick = () => send({ t: 'lgShowP1', v: !(st.lightning && st.lightning.showP1) });
+  const lgPlayer = () => (st && st.lightning && st.lightning.player) || 1;
+  let advanceTimer;
+  function advance() { const from = lgQ; clearTimeout(advanceTimer); advanceTimer = setTimeout(() => { if (lgQ === from && lgQ < 4) { lgQ++; render(); } }, 700); }
+
+  // ---- render
+  const asArray = v => Array.isArray(v) ? v : v ? Object.keys(v).sort((a, b) => a - b).map(k => v[k]) : [];
+  function render() {
+    if (!st) return;
+    const lightning = st.mode === 'lightning' && st.lightning;
+    $('#mainView').classList.toggle('hidden', !!lightning);
+    $('#lgView').classList.toggle('hidden', !lightning);
+    if (lightning) renderLightning(st.lightning); else renderMain();
+  }
+
+  function renderMain() {
+    const names = st.teamNames || ['Team One', 'Team Two'];
+    const bc = $('#buzz');
+    bc.className = '';
+    if (st.armed) { bc.classList.add('armed'); bc.querySelector('.big').textContent = 'Buzzers armed'; bc.querySelector('.small').textContent = 'Waiting for someone to buzz in'; }
+    else if (st.buzz && st.buzz.team != null) {
+      bc.classList.add('t' + st.buzz.team);
+      bc.querySelector('.big').textContent = `${names[st.buzz.team]} buzzed first`;
+      const who = st.buzz.player ? `${st.buzz.player} hit it. ` : '';
+      const late = st.buzz.lateBy != null ? `${names[1 - st.buzz.team]} was ${(st.buzz.lateBy / 1000).toFixed(3)}s behind` : '';
+      bc.querySelector('.small').textContent = who + late;
+    } else { bc.querySelector('.big').textContent = 'Buzzers locked'; bc.querySelector('.small').textContent = 'Arm them for the next face-off'; }
+
+    const m = st.multiplier || 1;
+    $('#roundMeta').textContent = `Round ${st.round + 1} of ${st.totalRounds}, ${['', 'single', 'double', 'triple'][m]} points`;
+    $('#roundMeta').classList.toggle('hot', m > 1);
+    $('#question').textContent = st.question || '(no question)';
+    const box = $('#answers'); box.innerHTML = '';
+    asArray(st.answers).forEach((a, i) => {
+      const b = document.createElement('button');
+      b.className = 'ans' + (a.revealed ? ' on' : '');
+      b.dataset.cmd = 'reveal'; b.dataset.i = i;
+      b.innerHTML = '<span class="n"></span><span class="t"></span><span class="p"></span>';
+      b.querySelector('.n').textContent = i + 1;
+      b.querySelector('.t').textContent = a.text;
+      b.querySelector('.p').textContent = a.pts;
+      box.appendChild(b);
+    });
+    $('#bank').textContent = st.bank;
+    $('#xs').textContent = '✕'.repeat(st.strikes || 0);
+    const scores = asArray(st.scores);
+    [0, 1].forEach(t => {
+      $('#n' + t).textContent = names[t];
+      $('#s' + t).textContent = scores[t] || 0;
+      $('#c' + t).textContent = st.control === t ? '▶ in control' : '';
+    });
+  }
+
+  function renderLightning(lg) {
+    const rows = asArray(lg.rows), p = lg.player || 1;
+    $('#clock').textContent = lg.timerLeft;
+    $('#clock').classList.toggle('low', lg.running && lg.timerLeft <= 5);
+    $('#pl1').classList.toggle('on', p === 1); $('#pl2').classList.toggle('on', p === 2);
+    // A rejected duplicate sends the host back to that question to ask again.
+    if (lg.dup && lg.dup.n !== lastDup && Date.now() - lg.dup.n < 8000) {
+      lastDup = lg.dup.n; clearTimeout(advanceTimer); lgQ = lg.dup.q;
+      if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+    }
+    lgQ = Math.min(lgQ, rows.length - 1);
+
+    const steps = $('#steps'); steps.innerHTML = '';
+    rows.forEach((r, i) => {
+      const b = document.createElement('button');
+      b.textContent = i + 1;
+      b.className = (i === lgQ ? 'cur ' : '') + (r['p' + p] ? 'done' : '');
+      b.onclick = () => { lgQ = i; render(); };
+      steps.appendChild(b);
+    });
+    const row = rows[lgQ];
+    if (!row) return;
+    $('#lgMeta').textContent = `Player ${p}, question ${lgQ + 1} of ${rows.length}`;
+    $('#lgQ').textContent = row.q;
+    const dupNow = lg.dup && lg.dup.q === lgQ && Date.now() - lg.dup.n < 8000;
+    $('#dup').classList.toggle('hidden', !dupNow);
+    const box = $('#choices'); box.innerHTML = '';
+    asArray(row.choices).forEach((c, i) => {
+      const b = document.createElement('button');
+      const mine = row['p' + p], first = row.p1;
+      b.className = 'ans' + (mine && mine.a === i ? ' on' : '') + (p === 2 && first && first.a === i ? ' p1said' : '');
+      b.dataset.cmd = 'lgAnswer'; b.dataset.a = i;
+      b.innerHTML = '<span class="n"></span><span class="t"></span><span class="p"></span>';
+      b.querySelector('.n').textContent = i + 1;
+      b.querySelector('.t').textContent = c.text;
+      b.querySelector('.p').textContent = c.pts;
+      box.appendChild(b);
+    });
+    const fmt = a => a ? `<b></b> (${a.pts})` : '<span class="meta">not answered yet</span>';
+    $('#said').innerHTML = `Player 1: ${fmt(row.p1)}<br>Player 2: ${fmt(row.p2)}`;
+    const bs = $('#said').querySelectorAll('b');
+    let k = 0; if (row.p1) bs[k++].textContent = row.p1.text; if (row.p2) bs[k].textContent = row.p2.text;
+
+    $('#lgTotal').textContent = lg.total;
+    $('#lgGoal').textContent = lg.won ? 'Goal reached!' : `Goal ${lg.goal}`;
+    const list = $('#revList'); list.innerHTML = '';
+    rows.forEach((r, i) => {
+      const a = r['p' + p];
+      if (!a) return;
+      const d = document.createElement('div'); d.className = 'revrow';
+      d.innerHTML = '<span></span>';
+      d.firstChild.textContent = `${i + 1}. ${a.text} (${a.pts})`;
+      if (r['r' + p]) { const s = document.createElement('span'); s.className = 'done'; s.textContent = 'on the board'; d.appendChild(s); }
+      else { const b = document.createElement('button'); b.textContent = 'Reveal'; b.dataset.cmd = 'lgReveal'; b.dataset.q = i; b.dataset.p = p; d.appendChild(b); }
+      list.appendChild(d);
+    });
+    $('#revealNext').disabled = !rows.some(r => r['p' + p] && !r['r' + p]);
+    $('#showP1').classList.toggle('hidden', p !== 2);
+    $('#showP1').textContent = lg.showP1 ? "Hide player 1's answers on the TV" : "Show player 1's answers on the TV";
+  }
+})();
+</script>
+</body>
+</html>

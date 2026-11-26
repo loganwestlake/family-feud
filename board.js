@@ -3,6 +3,7 @@
   const { store, FB } = F;
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---------------------------------------------------------------- optional local keys
   const DEFAULT_KEYS = [
@@ -22,14 +23,17 @@
     localKeys: false,
     target: 300,
     multipliers: true,
+    shuffle: true,
     questionsText: window.SAMPLE_QUESTIONS,
     room: F.randomRoom(),
     pin: F.randomPin(),
   }, saved);
   if (!F.validRoom(settings.room)) settings.room = F.randomRoom();
   if (!F.validPin(settings.pin)) settings.pin = F.randomPin();
-  delete settings.fbConfig; // older versions kept the config here; it now lives in store 'fbConfig'
+  delete settings.fbConfig;
   if (saved.fbConfig && !store.get('fbConfig', '')) store.set('fbConfig', saved.fbConfig);
+  // Pick up the bigger built-in question list if the host never edited the questions.
+  if (!saved.questionsEdited) settings.questionsText = window.SAMPLE_QUESTIONS;
 
   function parseQuestions(txt) {
     return String(txt || '').split(/\n\s*\n/)
@@ -45,12 +49,20 @@
   }
   let questions = parseQuestions(settings.questionsText);
 
+  const makeOrder = () => {
+    const o = questions.map((_, i) => i);
+    if (settings.shuffle) for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
+    return o;
+  };
   const freshRound = () => ({ revealed: [], banked: [], strikes: 0, bank: 0, bankOpen: true, armed: false, armId: null, buzz: null, control: null });
-  const newGame = () => Object.assign({ scores: [0, 0], round: 0, winner: null }, freshRound());
+  const newGame = () => Object.assign({ scores: [0, 0], round: 0, winner: null, order: makeOrder(), mode: 'main', lg: null }, freshRound());
   let state = Object.assign(newGame(), store.get('state', {}));
+  if (!Array.isArray(state.order) || state.order.length !== questions.length) state.order = makeOrder();
   state.round = Math.min(state.round, Math.max(0, questions.length - 1));
+  const qAt = r => questions[state.order[r]];
 
   const mult = r => !settings.multipliers ? 1 : r < 3 ? 1 : r === 3 ? 2 : 3;
+  const multName = m => ['', 'Single', 'Double', 'Triple'][m] + ' points';
   const save = () => { store.set('state', state); store.set('settings', settings); };
 
   // ---------------------------------------------------------------- sound (synthesized, no files)
@@ -76,13 +88,81 @@
       win() { [392, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, 'square', 0.15, i * 0.14)); tone(1047, 1.4, 'triangle', 0.3, 1.0); },
       intro() { [262, 330, 392, 523, 392, 523, 659, 784].forEach((f, i) => tone(f, 0.22, 'triangle', 0.25, i * 0.11)); },
       join() { tone(880, 0.15, 'sine', 0.2); tone(1320, 0.25, 'sine', 0.2, 0.1); },
+      tick() { tone(1200, 0.06, 'square', 0.12); },
+      timeUp() { tone(196, 1.1, 'sawtooth', 0.3); tone(201, 1.1, 'square', 0.18); },
+      dup() { tone(160, 0.22, 'square', 0.3); tone(160, 0.3, 'square', 0.3, 0.28); },
+      zero() { tone(130, 0.5, 'sawtooth', 0.25); },
     };
   })();
 
-  // ---------------------------------------------------------------- board rendering
+  // ---------------------------------------------------------------- ambient: marquee bulbs + sparkles
+  function layBulbs(box) {
+    box.innerHTML = '';
+    const w = box.clientWidth, h = box.clientHeight, gap = Math.max(18, innerHeight * 0.024);
+    const pts = [];
+    const nx = Math.max(2, Math.round(w / gap)), ny = Math.max(2, Math.round(h / gap));
+    for (let i = 0; i < nx; i++) pts.push([i / nx * w, 0]);
+    for (let i = 0; i < ny; i++) pts.push([w, i / ny * h]);
+    for (let i = 0; i < nx; i++) pts.push([w - i / nx * w, h]);
+    for (let i = 0; i < ny; i++) pts.push([0, h - i / ny * h]);
+    pts.forEach(([x, y]) => { const b = document.createElement('i'); b.style.left = x + 'px'; b.style.top = y + 'px'; box.appendChild(b); });
+  }
+  const layAllBulbs = () => $$('.bulbs').forEach(layBulbs);
+  let chase = 0, flashUntil = 0;
+  setInterval(() => {
+    chase++;
+    const flash = Date.now() < flashUntil;
+    $$('.bulbs').forEach(box => {
+      const bulbs = box.children;
+      for (let i = 0; i < bulbs.length; i++) {
+        const on = flash ? (chase % 2 === 0) : ((i + chase) % 4 === 0 || (reduceMotion && i % 2 === 0));
+        bulbs[i].classList.toggle('on', on);
+      }
+    });
+  }, 140);
+  const flashBulbs = ms => { flashUntil = Date.now() + ms; };
+  addEventListener('resize', layAllBulbs);
+
+  (function sparkles() {
+    const c = $('#sparkles'), g = c.getContext('2d');
+    const N = reduceMotion ? 20 : 70;
+    let parts = [];
+    const resize = () => { c.width = innerWidth; c.height = innerHeight; parts = Array.from({ length: N }, () => spawn(true)); };
+    const spawn = any => ({ x: Math.random() * c.width, y: any ? Math.random() * c.height : c.height + 10, r: Math.random() * 1.8 + 0.4,
+      v: Math.random() * 0.25 + 0.05, p: Math.random() * Math.PI * 2 });
+    resize(); addEventListener('resize', resize);
+    (function frame() {
+      g.clearRect(0, 0, c.width, c.height);
+      for (const s of parts) {
+        if (!reduceMotion) { s.y -= s.v; s.p += 0.03; }
+        if (s.y < -10) Object.assign(s, spawn(false));
+        g.globalAlpha = 0.25 + 0.5 * (0.5 + 0.5 * Math.sin(s.p));
+        g.fillStyle = '#fff1b8';
+        g.beginPath(); g.arc(s.x, s.y, s.r, 0, Math.PI * 2); g.fill();
+      }
+      requestAnimationFrame(frame);
+    })();
+  })();
+
+  // Smoothly count a number up/down to its new value.
+  const shown = new WeakMap();
+  function countTo(el, to) {
+    const from = shown.has(el) ? shown.get(el) : to;
+    shown.set(el, to);
+    if (from === to) { el.textContent = to; return; }
+    el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+    const t0 = performance.now(), dur = 700;
+    (function step(now) {
+      const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = Math.round(from + (to - from) * e);
+      if (k < 1 && shown.get(el) === to) requestAnimationFrame(step);
+    })(t0);
+  }
+
+  // ---------------------------------------------------------------- main board rendering
   let builtKey = '';
   function buildBoard() {
-    const q = questions[state.round];
+    const q = qAt(state.round);
     const key = state.round + '|' + JSON.stringify(q);
     if (key === builtKey) return;
     builtKey = key;
@@ -104,63 +184,51 @@
     }
   }
 
-  function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
-
-  let players = {}; // id -> {team, name}
+  let players = {};
   const teamPlayers = t => Object.values(players).filter(p => p && p.team === t);
 
-  let lastBank = null, lastScores = [null, null];
   function render() {
-    const q = questions[state.round];
+    document.body.className = 'mode-' + state.mode;
+    if (state.mode === 'lightning') renderLightning(); else renderMain();
+    renderLobby();
+    if (state.winner != null) showWinner(settings.teamNames[state.winner]);
+    else if (!(state.lg && state.lg.won === true && state.mode === 'lightning')) $('#winOverlay').classList.remove('show');
+    publish();
+  }
+
+  function renderMain() {
+    const q = qAt(state.round);
     buildBoard();
     $$('#board .tile').forEach((t, i) => t.classList.toggle('revealed', !!state.revealed[i]));
-
-    $('#question span').textContent = q ? q.q : 'Add some questions in Setup ⚙';
-    $('#roundInfo').textContent = `ROUND ${state.round + 1} / ${questions.length}`;
+    $('#question span').textContent = q ? q.q : 'Add some questions in Setup';
+    $('#roundInfo').textContent = `Round ${state.round + 1} of ${questions.length}`;
     const m = mult(state.round);
-    $('#multInfo').textContent = ['', 'SINGLE', 'DOUBLE', 'TRIPLE'][m] + ' POINTS';
+    $('#multInfo').textContent = multName(m);
     $('#multInfo').classList.toggle('hot', m > 1);
-
-    const bankEl = $('#bank');
-    if (lastBank !== null && state.bank > lastBank) bump(bankEl);
-    bankEl.textContent = state.bank; lastBank = state.bank;
+    countTo($('#bank'), state.bank);
 
     [0, 1].forEach(t => {
       const el = $('#team' + t);
       el.querySelector('.name').textContent = settings.teamNames[t];
-      const sEl = el.querySelector('.score');
-      if (lastScores[t] !== null && state.scores[t] !== lastScores[t]) bump(sEl);
-      sEl.textContent = state.scores[t]; lastScores[t] = state.scores[t];
+      countTo(el.querySelector('.score'), state.scores[t]);
       el.classList.toggle('control', state.control === t);
       el.classList.toggle('buzzed', !!state.buzz && state.buzz.team === t);
       const n = teamPlayers(t).length;
       el.querySelector('.keys').textContent = fbOn
-        ? (n ? `${n} BUZZER${n > 1 ? 'S' : ''} CONNECTED` : 'NO BUZZER CONNECTED')
-        : (settings.localKeys ? (t === 0 ? 'BUZZ: LEFT SIDE OF KEYBOARD' : 'BUZZ: RIGHT SIDE OF KEYBOARD') : '');
+        ? (n ? `${n} buzzer${n > 1 ? 's' : ''} connected` : 'No buzzer connected')
+        : (settings.localKeys ? (t === 0 ? 'Buzz: left side of keyboard' : 'Buzz: right side of keyboard') : '');
       $$('.tn' + t).forEach(s => (s.textContent = settings.teamNames[t]));
-      // lobby
-      $('#lt' + t + ' .ltName').textContent = settings.teamNames[t];
-      const box = $('#lt' + t + ' .ltPlayers');
-      box.innerHTML = '';
-      const list = teamPlayers(t);
-      if (!list.length) box.innerHTML = '<div class="none">Waiting for a buzzer to join…</div>';
-      list.forEach(p => { const d = document.createElement('div'); d.className = 'pl'; d.textContent = p.name || 'Buzzer'; box.appendChild(d); });
     });
-
     $$('#strikes span').forEach((s, i) => s.classList.toggle('on', i < state.strikes));
 
     const bs = $('#buzzStatus');
     bs.classList.toggle('armed', state.armed);
-    if (state.armed) bs.textContent = '⚡ BUZZERS ARMED, BUZZ IN!';
+    if (state.armed) bs.textContent = '⚡ Buzzers armed. Buzz in!';
     else if (state.buzz) {
       const who = state.buzz.player ? ` (${state.buzz.player})` : '';
-      const late = state.buzz.lateBy != null ? ` · ${settings.teamNames[1 - state.buzz.team]} was ${(state.buzz.lateBy / 1000).toFixed(3)}s late` : '';
-      bs.textContent = `${settings.teamNames[state.buzz.team].toUpperCase()}${who} BUZZED FIRST${late}`;
-    } else bs.textContent = 'Buzzers locked. Click ⚡ Arm Buzzers for the face-off';
-
-    if (state.winner != null) showWinner(state.winner); else $('#winOverlay').classList.remove('show');
-    renderLobbyCodes();
-    publish();
+      const late = state.buzz.lateBy != null ? `. ${settings.teamNames[1 - state.buzz.team]} was ${(state.buzz.lateBy / 1000).toFixed(3)}s late` : '';
+      bs.textContent = `${settings.teamNames[state.buzz.team]}${who} buzzed first${late}`;
+    } else bs.textContent = 'Buzzers locked. Arm them for the face-off';
   }
 
   // ---------------------------------------------------------------- overlays
@@ -179,18 +247,32 @@
     o.querySelector('.who').textContent = settings.teamNames[team];
     o.querySelector('.player').textContent = player || '';
     o.classList.add('show');
+    flashBulbs(1500);
     clearTimeout(bTimer);
     bTimer = setTimeout(() => o.classList.remove('show'), 2200);
   }
+  let rTimer;
+  function showCard(big, small) {
+    const o = $('#roundCard');
+    o.querySelector('.r').textContent = big;
+    o.querySelector('.m').textContent = small;
+    o.classList.remove('show'); void o.offsetWidth; o.classList.add('show');
+    flashBulbs(1200);
+    clearTimeout(rTimer);
+    rTimer = setTimeout(() => o.classList.remove('show'), 1900);
+  }
+  const showRoundCard = () => showCard(`Round ${state.round + 1}`, multName(mult(state.round)));
   let shownWinner = null;
-  function showWinner(team) {
+  function showWinner(title, sub = 'And the winner is') {
     const o = $('#winOverlay');
-    o.querySelector('.who').textContent = settings.teamNames[team];
-    if (o.classList.contains('show') && shownWinner === team) return;
-    shownWinner = team;
+    o.querySelector('.who').textContent = title;
+    o.querySelector('.sub').textContent = sub;
+    if (o.classList.contains('show') && shownWinner === title) return;
+    shownWinner = title;
     o.classList.add('show');
-    const colors = ['#ffcf3f', '#ff4d4d', '#25d0c4', '#ffffff', '#3b7cff'];
-    for (let i = 0; i < 120; i++) {
+    flashBulbs(4000);
+    const colors = ['#f7c548', '#ff5a4e', '#1fd1c1', '#fff8e7', '#1f5bff'];
+    for (let i = 0; i < 140; i++) {
       const c = document.createElement('div');
       c.className = 'confetti';
       c.style.left = Math.random() * 100 + 'vw';
@@ -202,6 +284,120 @@
     }
   }
   $('#winOverlay').addEventListener('click', () => exec({ t: 'dismissWin' }));
+
+  // ---------------------------------------------------------------- Lightning Round
+  // Two players answer the same 5 questions against the clock. Player 2 can't repeat
+  // player 1's answers. Reveal each answer for points; together they need 200.
+  const LG_GOAL = 200;
+  const newLightning = () => {
+    const pool = questions.map((_, i) => i).filter(i => i !== state.order[state.round]);
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    return { qs: pool.slice(0, 5), player: 1, ans: { 1: [0, 0, 0, 0, 0].map(() => false), 2: [0, 0, 0, 0, 0].map(() => false) },
+      rev: { 1: [false, false, false, false, false], 2: [false, false, false, false, false] }, showP1: true,
+      timerLeft: 20, timerTotal: 20, running: false, dup: null, won: false };
+  };
+  const lgTotal = lg => [1, 2].reduce((sum, p) => sum + lg.ans[p].reduce((s, a, i) => s + (a && lg.rev[p][i] ? a.pts : 0), 0), 0);
+
+  let lgBuilt = '';
+  function renderLightning() {
+    const lg = state.lg;
+    if (!lg) return;
+    const board = $('#lgBoard');
+    if (lgBuilt !== JSON.stringify(lg.qs)) {
+      lgBuilt = JSON.stringify(lg.qs);
+      board.innerHTML = '';
+      for (let i = 0; i < 5; i++) for (const p of [1, 2]) {
+        const cell = document.createElement('div');
+        cell.className = 'lg-cell'; cell.dataset.p = p; cell.dataset.i = i;
+        cell.innerHTML = '<div class="ans"></div><div class="pts"></div>';
+        board.appendChild(cell);
+      }
+      // rows alternate p1/p2 so the grid reads as two columns
+    }
+    $$('#lgBoard .lg-cell').forEach(cell => {
+      const p = +cell.dataset.p, i = +cell.dataset.i, a = lg.ans[p][i], r = lg.rev[p][i];
+      const covered = p === 1 && !lg.showP1;
+      cell.classList.toggle('covered', covered);
+      const ans = cell.querySelector('.ans'), pts = cell.querySelector('.pts');
+      const txt = a && r ? a.text : '', pt = a && r ? String(a.pts) : '';
+      if (ans.textContent !== txt) { ans.textContent = txt; if (txt) { ans.classList.remove('pop'); void ans.offsetWidth; ans.classList.add('pop'); } }
+      if (pts.textContent !== pt) { pts.textContent = pt; if (pt) { pts.classList.remove('pop'); void pts.offsetWidth; pts.classList.add('pop'); } }
+    });
+    countTo($('#lgTotal'), lgTotal(lg));
+    $('#lgGoal').textContent = `Goal: ${LG_GOAL}`;
+    $('#lgPlayer').textContent = `Player ${lg.player}`;
+    $('#lgTime').textContent = lg.timerLeft;
+    const ring = $('#lgTimer .ring');
+    ring.style.strokeDashoffset = String(276.5 * (1 - lg.timerLeft / (lg.timerTotal || 1)));
+    $('#lgTimer').classList.toggle('low', lg.running && lg.timerLeft <= 5);
+    if (lg.won === true) showWinner(`${lgTotal(lg)} points!`, 'Lightning Round winners');
+  }
+
+  let lgInterval = null;
+  function lgTimer(seconds) {
+    const lg = state.lg;
+    clearInterval(lgInterval);
+    if (!seconds) { lg.running = false; return; }
+    lg.timerTotal = seconds; lg.timerLeft = seconds; lg.running = true;
+    lgInterval = setInterval(() => {
+      if (!state.lg || !state.lg.running) { clearInterval(lgInterval); return; }
+      state.lg.timerLeft = Math.max(0, state.lg.timerLeft - 1);
+      if (state.lg.timerLeft <= 5 && state.lg.timerLeft > 0) Sound.tick();
+      if (state.lg.timerLeft === 0) { state.lg.running = false; clearInterval(lgInterval); Sound.timeUp(); flashBulbs(1500); }
+      save(); render();
+    }, 1000);
+  }
+
+  function lgCommand(c) {
+    if (c.t === 'lgNew') {
+      state.lg = newLightning(); state.mode = 'lightning'; lgBuilt = '';
+      clearInterval(lgInterval); $('#winOverlay').classList.remove('show'); shownWinner = null;
+      showCard('Lightning Round', `Two players, five questions, ${LG_GOAL} points to win`);
+      Sound.intro();
+      requestAnimationFrame(layAllBulbs);
+      return true;
+    }
+    const lg = state.lg;
+    if (!lg) return false;
+    const p = +(c.p || lg.player), i = +c.q;
+    switch (c.t) {
+      case 'lgPlayer':
+        lg.player = p; lg.showP1 = p === 1; clearInterval(lgInterval);
+        lg.running = false; lg.timerTotal = lg.timerLeft = p === 1 ? 20 : 25; lg.dup = null;
+        break;
+      case 'lgTimer': lgTimer(+c.s); break;
+      case 'lgAnswer': {
+        if (!(i >= 0 && i < 5)) return false;
+        const q = questions[lg.qs[i]];
+        const a = +c.a;
+        const rec = a >= 0 && q.a[a] ? { text: q.a[a].text, pts: q.a[a].pts, a } : { text: String(c.text || 'No answer').slice(0, 40), pts: 0, a: -1 };
+        if (p === 2) {
+          const first = lg.ans[1][i];
+          if (first && ((rec.a >= 0 && first.a === rec.a) || (rec.a < 0 && first.text.toLowerCase() === rec.text.toLowerCase() && rec.text !== 'No answer'))) {
+            lg.dup = { q: i, n: Date.now() }; Sound.dup();
+            break;
+          }
+        }
+        lg.dup = null;
+        lg.ans[p][i] = rec; lg.rev[p][i] = false;
+        break;
+      }
+      case 'lgClear': lg.ans[p][i] = false; lg.rev[p][i] = false; break;
+      case 'lgReveal': {
+        // Reveal the given row, or the next answered row that is still hidden.
+        let k = c.q != null ? i : lg.ans[p].findIndex((a, j) => a && !lg.rev[p][j]);
+        if (k < 0 || !lg.ans[p][k]) return false;
+        if (p === 2) lg.showP1 = true;
+        lg.rev[p][k] = true;
+        lg.ans[p][k].pts > 0 ? Sound.ding() : Sound.zero();
+        if (!lg.won && lgTotal(lg) >= LG_GOAL) { lg.won = true; setTimeout(Sound.win, 600); }
+        break;
+      }
+      case 'lgShowP1': lg.showP1 = !!c.v; break;
+      default: return false;
+    }
+    return true;
+  }
 
   // ---------------------------------------------------------------- game commands
   function arm() {
@@ -216,8 +412,15 @@
     if (fbOn) FB.ref('buzz').set({ armed: false, armId: state.armId || null }).catch(fbError);
   }
   function exec(c) {
-    const q = questions[state.round];
+    const q = qAt(state.round);
+    if (c.t && c.t.startsWith('lg')) { if (!lgCommand(c)) return; save(); render(); return; }
     switch (c.t) {
+      case 'mode':
+        state.mode = c.m === 'lightning' && state.lg ? 'lightning' : 'main';
+        clearInterval(lgInterval); if (state.lg) state.lg.running = false;
+        $('#winOverlay').classList.remove('show'); shownWinner = null;
+        if (state.mode === 'main') { showRoundCard(); requestAnimationFrame(layAllBulbs); }
+        break;
       case 'arm': arm(); break;
       case 'reveal': {
         const i = +c.i;
@@ -227,7 +430,7 @@
           if (state.banked[i]) { state.bank -= state.banked[i]; state.banked[i] = 0; }
         } else {
           state.revealed[i] = true;
-          Sound.ding();
+          Sound.ding(); flashBulbs(500);
           if (state.bankOpen) { const p = q.a[i].pts * mult(state.round); state.banked[i] = p; state.bank += p; }
         }
         break;
@@ -249,7 +452,7 @@
         state.scores[t] += state.bank;
         state.bank = 0; state.banked = []; state.bankOpen = false;
         if (state.armed) lockBuzzers();
-        Sound.bank();
+        Sound.bank(); flashBulbs(1200);
         if (settings.target > 0 && state.scores[t] >= settings.target) { state.winner = t; setTimeout(Sound.win, 700); }
         break;
       }
@@ -257,16 +460,17 @@
         state.scores[+c.team] = Math.max(0, state.scores[+c.team] + (+c.d || 0)); break;
       case 'next':
         if (state.round >= questions.length - 1) return;
-        state.round++; Object.assign(state, freshRound()); arm(); break;
+        state.round++; Object.assign(state, freshRound()); arm(); showRoundCard(); break;
       case 'prev':
         if (state.round <= 0) return;
-        state.round--; Object.assign(state, freshRound()); arm(); break;
+        state.round--; Object.assign(state, freshRound()); arm(); showRoundCard(); break;
       case 'resetRound':
         Object.assign(state, freshRound()); arm(); break;
       case 'newGame':
-        state = newGame(); shownWinner = null; arm(); break;
+        state = newGame(); shownWinner = null; arm(); showRoundCard(); break;
       case 'dismissWin':
-        state.winner = null; break;
+        state.winner = null; if (state.lg) state.lg.won = state.lg.won ? 'seen' : false;
+        $('#winOverlay').classList.remove('show'); shownWinner = null; break;
       default: return;
     }
     save(); render();
@@ -275,9 +479,7 @@
   // ---------------------------------------------------------------- buzzing
   // With Firebase, the database decides who was first: every buzzer runs a transaction that only
   // succeeds while buzz/armed is true for the current armId, so exactly one team can claim it.
-  // Without Firebase (offline), the TV keyboard decides locally.
-  let presses = []; // {team, at} for the current armId (server timestamps)
-
+  let presses = [];
   function winnerDecided(team, player) {
     if (!state.armed) return;
     state.armed = false;
@@ -293,11 +495,9 @@
     const w = first(state.buzz.team), o = first(1 - state.buzz.team);
     if (isFinite(w) && isFinite(o)) { state.buzz.lateBy = Math.max(0, o - w); save(); render(); }
   }
-
   let localFirstAt = 0;
   function localBuzz(team) {
     if (fbOn) {
-      // Treat the TV keyboard like another buzzer so the database stays the referee.
       if (!state.armed) return;
       const armId = state.armId;
       FB.ref('presses').push({ team, armId, at: FB.TS }).catch(fbError);
@@ -326,7 +526,7 @@
       showKeys();
       return;
     }
-    if ($('#setup').open || !settings.localKeys) return;
+    if ($('#setup').open || !settings.localKeys || state.mode !== 'main') return;
     const team = teamFor(e.code);
     if (team === null) return;
     e.preventDefault();
@@ -334,7 +534,10 @@
   });
 
   // ---------------------------------------------------------------- controls
-  $$('#controls [data-cmd]').forEach(b => b.addEventListener('click', () => { exec({ t: b.dataset.cmd, team: b.dataset.team }); b.blur(); }));
+  $$('#controls [data-cmd]').forEach(b => b.addEventListener('click', () => {
+    exec({ t: b.dataset.cmd, team: b.dataset.team, s: b.dataset.s, p: b.dataset.p, m: b.dataset.m });
+    b.blur();
+  }));
   async function goFullscreen() {
     try {
       if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
@@ -345,34 +548,51 @@
   $('#startBtn').addEventListener('click', () => {
     $('#lobby').classList.add('hidden');
     Sound.intro(); goFullscreen();
-    if (!state.armed && !state.buzz) { arm(); save(); render(); }
+    requestAnimationFrame(layAllBulbs);
+    if (state.mode === 'main') {
+      if (!state.armed && !state.buzz) arm();
+      showRoundCard();
+    }
+    save(); render();
   });
   $('#lobbyBtn').addEventListener('click', e => { e.target.blur(); $('#lobby').classList.remove('hidden'); });
   $('#lobbySetup').addEventListener('click', openSetup);
   $('#setupBtn').addEventListener('click', openSetup);
 
-  // ---------------------------------------------------------------- lobby / join info
-  const pageUrl = name => new URL(name, location.href).href.replace(/[?#].*$/, '');
+  // ---------------------------------------------------------------- lobby
   let pinVisible = false;
-  $('#pinToggle').addEventListener('click', e => { pinVisible = !pinVisible; e.target.textContent = pinVisible ? 'hide' : 'show'; renderLobbyCodes(); });
-  let lastQr = '';
-  function renderLobbyCodes() {
-    const url = pageUrl('buzzer.html');
-    $('#joinUrl').textContent = url.replace(/^https?:\/\//, '');
+  $('#pinToggle').addEventListener('click', e => { pinVisible = !pinVisible; e.target.textContent = pinVisible ? 'Hide PIN' : 'Show PIN'; renderLobby(); });
+  const qrCache = {};
+  function qr(el, text, size) {
+    if (!window.QRCode || qrCache[el.id] === text) return;
+    qrCache[el.id] = text; el.innerHTML = '';
+    new QRCode(el, { text, width: size, height: size, correctLevel: QRCode.CorrectLevel.L });
+  }
+  function renderLobby() {
+    const buzzUrl = F.siteUrl('buzzer.html'), remoteUrl = F.siteUrl('remote/');
+    $('#joinUrl').textContent = buzzUrl.replace(/^https?:\/\//, '');
+    $('#remoteUrl').textContent = remoteUrl.replace(/^https?:\/\//, '');
     $('#roomCode').textContent = settings.room;
     $('#pinCode').textContent = pinVisible ? settings.pin : '••••';
-    const qrUrl = url + '#room=' + settings.room;  // the PIN is never put in the QR code
-    if (qrUrl !== lastQr && window.QRCode) {
-      lastQr = qrUrl; $('#joinQr').innerHTML = '';
-      new QRCode($('#joinQr'), { text: qrUrl, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.L });
-    }
+    $('#pinCode').classList.toggle('masked', !pinVisible);
+    // QR codes on the TV carry only the room code; the PIN is typed.
+    qr($('#joinQr'), buzzUrl + '#room=' + settings.room, 200);
+    qr($('#remoteQr'), remoteUrl + '#room=' + settings.room, 200);
+    [0, 1].forEach(t => {
+      $('#lt' + t + ' .ltName').textContent = settings.teamNames[t];
+      const box = $('#lt' + t + ' .ltPlayers');
+      box.innerHTML = '';
+      const list = teamPlayers(t);
+      if (!list.length) box.innerHTML = '<div class="none">Waiting for a buzzer to join</div>';
+      list.forEach(p => { const d = document.createElement('div'); d.className = 'pl'; d.textContent = p.name || 'Buzzer'; box.appendChild(d); });
+    });
   }
 
   // ---------------------------------------------------------------- setup dialog
   function showKeys() {
     [0, 1].forEach(t => {
       const el = $('#keys' + t);
-      el.innerHTML = settings.keys[t].length ? '' : '<i>no keys. Click Learn keys</i>';
+      el.innerHTML = settings.keys[t].length ? '' : '<i>No keys yet. Click Learn keys</i>';
       settings.keys[t].forEach(k => { const kb = document.createElement('kbd'); kb.textContent = keyLabel(k); el.appendChild(kb); });
       el.classList.toggle('learning', learning === t);
     });
@@ -389,14 +609,11 @@
   $('#newCodesBtn').addEventListener('click', () => { $('#room').value = F.randomRoom(); $('#pin').value = F.randomPin(); updateHostQr(); });
   $('#room').addEventListener('input', e => { e.target.value = F.cleanRoom(e.target.value); updateHostQr(); });
   $('#pin').addEventListener('input', e => { e.target.value = F.cleanPin(e.target.value); updateHostQr(); });
-
   function updateHostQr() {
     const room = $('#room').value, pin = $('#pin').value;
-    $('#hostUrl').textContent = pageUrl('host.html');
-    $('#qr').innerHTML = '';
-    if (!F.validRoom(room) || !F.validPin(pin) || !window.QRCode) return;
-    // Host link carries room + PIN in the #fragment, which browsers never send to the web server.
-    new QRCode($('#qr'), { text: pageUrl('host.html') + '#' + F.enc({ r: room, p: pin }), width: 150, height: 150, correctLevel: QRCode.CorrectLevel.L });
+    if (!F.validRoom(room) || !F.validPin(pin)) { $('#qr').innerHTML = ''; qrCache.qr = ''; return; }
+    // Only shown inside Setup: this one carries the PIN (in the #fragment, never sent to a server).
+    qr($('#qr'), F.siteUrl('remote/') + '#' + F.enc({ r: room, p: pin }), 150);
   }
 
   let atOpen = '';
@@ -407,6 +624,7 @@
     $('#tName1').value = settings.teamNames[1];
     $('#target').value = settings.target;
     $('#multipliers').checked = settings.multipliers;
+    $('#shuffle').checked = settings.shuffle;
     $('#localKeys').checked = settings.localKeys;
     $('#questionsText').value = settings.questionsText;
     $('#fbConfig').value = store.get('fbConfig', '');
@@ -422,13 +640,16 @@
     settings.teamNames = [$('#tName0').value.trim() || 'Team One', $('#tName1').value.trim() || 'Team Two'];
     settings.target = Math.max(0, parseInt($('#target').value, 10) || 0);
     settings.multipliers = $('#multipliers').checked;
+    settings.shuffle = $('#shuffle').checked;
     settings.localKeys = $('#localKeys').checked;
     if ($('#questionsText').value !== settings.questionsText) {
       settings.questionsText = $('#questionsText').value;
+      settings.questionsEdited = settings.questionsText !== window.SAMPLE_QUESTIONS;
       questions = parseQuestions(settings.questionsText);
+      state.order = makeOrder();
       state.round = Math.min(state.round, Math.max(0, questions.length - 1));
       Object.assign(state, freshRound());
-      builtKey = '';
+      builtKey = ''; state.lg = null; state.mode = 'main';
     }
     store.set('fbConfig', $('#fbConfig').value.trim());
     save();
@@ -455,12 +676,11 @@
     if (!/permission/i.test(msg)) { $('#lobbyMsg').textContent = '⚠ ' + msg; return; }
     if (rulesHelpShown) return;
     rulesHelpShown = true;
-    // One-time Firebase step: show a copy button and a direct link to the rules page.
     const cfg = F.getConfig() || {};
     const url = `https://console.firebase.google.com/project/${cfg.projectId}/database/${cfg.projectId}-default-rtdb/rules`;
     const box = $('#lobbyMsg');
     box.innerHTML = `⚠ Firebase is blocking the game. One-time fix: <b>1.</b> <button class="mini" id="copyRules">Copy the rules</button>
-      <b>2.</b> <a id="rulesLink" target="_blank" style="color:var(--gold)">open the Firebase rules page</a>, select everything there, paste, click <b>Publish</b>.
+      <b>2.</b> <a id="rulesLink" target="_blank">Open the Firebase rules page</a>, select everything there, paste, click <b>Publish</b>.
       <b>3.</b> Reload this page.`;
     $('#rulesLink').href = url;
     $('#copyRules').onclick = async ev => {
@@ -471,28 +691,20 @@
   }
   function fbStart() {
     const err = FB.init(F.getConfig());
-    if (err === 'NO_CONFIG') {
-      setConn('err', 'Firebase not set up. Buzzer laptops can\'t join');
-      $('#lobbyMsg').textContent = '⚠ This site has no Firebase project yet, so the buzzer laptops can\'t connect. See the README ("Firebase setup"), or paste a config in ⚙ Setup → Advanced.';
-      return;
-    }
+    if (err === 'NO_CONFIG') { setConn('err', 'Firebase not set up'); return; }
     if (err) { fbError(err); return; }
     FB.join(settings.room, settings.pin);
     fbOn = true;
     setConn('', 'Connecting… room ' + settings.room);
-    FB.onConnected(on => setConn(on ? 'on' : '', (on ? 'Live · room ' : 'Reconnecting… room ') + settings.room));
-
-    // Who won the buzz (set by a buzzer laptop's transaction).
+    FB.onConnected(on => setConn(on ? 'on' : '', (on ? 'Live, room ' : 'Reconnecting… room ') + settings.room));
     FB.ref('buzz').on('value', s => {
       const b = s.val();
       if (b && b.armed === false && b.team != null && b.armId === state.armId) winnerDecided(+b.team, b.player);
     }, fbError);
-    // Every press, with server timestamps, to show how close it was.
     FB.ref('presses').on('child_added', s => {
       const p = s.val();
       if (p && p.armId === state.armId && typeof p.at === 'number') { presses.push(p); computeLate(); }
     });
-    // Connected buzzer laptops.
     let known = 0;
     FB.ref('players').on('value', s => {
       players = s.val() || {};
@@ -500,20 +712,20 @@
       if (n > known) Sound.join();
       known = n; render();
     });
-    // Commands from the phone remote.
     FB.ref('commands').on('child_added', snap => {
       const c = snap.val();
       snap.ref.remove();
       if (c && c.t && Date.now() - (c.ts || 0) < 60000) exec(c);
     });
-    // Re-arm with a fresh id after a reload so a stale buzz can't count.
     if (state.armed) arm(); else lockBuzzers();
     save(); publish();
   }
   function publish() {
     if (!fbOn) return;
-    const q = questions[state.round];
+    const q = qAt(state.round);
+    const lg = state.lg;
     const snapshot = F.clean({
+      mode: state.mode,
       teamNames: settings.teamNames,
       scores: state.scores,
       round: state.round,
@@ -528,6 +740,15 @@
       control: state.control,
       buzz: state.buzz,
       winner: state.winner,
+      lightning: lg ? {
+        player: lg.player, timerLeft: lg.timerLeft, running: lg.running, showP1: lg.showP1, goal: LG_GOAL, total: lgTotal(lg),
+        dup: lg.dup || false, won: !!lg.won,
+        rows: lg.qs.map((qi, i) => ({
+          q: questions[qi].q,
+          choices: questions[qi].a.map(a => ({ text: a.text, pts: a.pts })),
+          p1: lg.ans[1][i] || false, p2: lg.ans[2][i] || false, r1: lg.rev[1][i], r2: lg.rev[2][i],
+        })),
+      } : false,
     });
     snapshot.updated = FB.TS;
     FB.ref('state').set(snapshot).catch(fbError);
@@ -539,6 +760,10 @@
   }
 
   // ---------------------------------------------------------------- go
+  F.keepAwake(on => { $('#awakeStatus').textContent = on ? '☀ Keeping the screen awake' : 'Screen keep-awake not active yet (click anywhere)'; });
+  if (state.lg) { state.lg.running = false; }
   fbStart();
   render();
+  requestAnimationFrame(layAllBulbs);
+  if (document.fonts) document.fonts.ready.then(layAllBulbs);
 })();

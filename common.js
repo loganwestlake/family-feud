@@ -4,6 +4,8 @@
 // The database rules (database.rules.json) don't let anyone list games/, so a game can only be
 // opened by someone who knows both the room code and the 4-digit PIN.
 window.FFO = (() => {
+  // Folder this script was loaded from (the site root), so pages in subfolders find shared files.
+  const ROOT = (document.currentScript && document.currentScript.src) || location.href;
   const store = {
     get(k, d) { try { const v = localStorage.getItem('ffo_' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem('ffo_' + k, JSON.stringify(v)); } catch {} },
@@ -79,5 +81,41 @@ window.FFO = (() => {
   // Turns undefined into "missing", because Firebase rejects undefined values.
   const clean = o => JSON.parse(JSON.stringify(o));
 
-  return { store, parseConfig, getConfig, cleanRoom, cleanPin, validRoom, validPin, randomRoom, randomPin, randomId, FB, friendlyError, enc, dec, clean };
+  // Keeps the screen on (no dimming, no screensaver) while the page is open.
+  // Uses the Screen Wake Lock API, re-acquired whenever the tab comes back; browsers without it
+  // get a tiny muted looping video, which most of them treat as "media playing, stay awake".
+  function keepAwake(onChange = () => {}) {
+    let lock = null, video = null;
+    const report = () => onChange(!!lock || !!(video && !video.paused));
+    async function grab() {
+      if (document.visibilityState !== 'visible') return;
+      if ('wakeLock' in navigator) {
+        if (lock) return;
+        try {
+          lock = await navigator.wakeLock.request('screen');
+          lock.addEventListener('release', () => { lock = null; report(); });
+        } catch {}
+      } else {
+        if (!video) {
+          video = document.createElement('video');
+          video.src = new URL('assets/awake.mp4', ROOT).href;
+          Object.assign(video, { muted: true, loop: true, playsInline: true });
+          video.setAttribute('playsinline', '');
+          video.style.cssText = 'position:fixed;width:2px;height:2px;opacity:.01;bottom:0;right:0;pointer-events:none';
+          document.body.appendChild(video);
+        }
+        try { await video.play(); } catch {}
+      }
+      report();
+    }
+    grab();
+    document.addEventListener('visibilitychange', grab);
+    // Some browsers only grant it after the person interacts with the page.
+    ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, grab, { passive: true }));
+    setInterval(grab, 20000);
+  }
+
+  const siteUrl = path => new URL(path, ROOT).href.replace(/[?#].*$/, '');
+
+  return { keepAwake, siteUrl, store, parseConfig, getConfig, cleanRoom, cleanPin, validRoom, validPin, randomRoom, randomPin, randomId, FB, friendlyError, enc, dec, clean };
 })();

@@ -5,33 +5,36 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Family Face-Off</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=5">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=6">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="firebase-config.js?v=5" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<script src="firebase-config.js?v=6" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 </head>
-<body>
+<body class="mode-main">
+<div class="stage" aria-hidden="true"><div class="beam l"></div><div class="beam r"></div><div class="floor"></div><canvas id="sparkles"></canvas></div>
+
 <div id="app">
   <div class="logo"><div class="small">FAMILY</div><div class="big">FACE-OFF</div></div>
+
   <div class="topline">
-    <div id="roundInfo" class="pill">ROUND 1</div>
+    <div id="roundInfo" class="pill">Round 1</div>
     <div class="bank"><div class="label">BANK</div><div id="bank" class="num">0</div></div>
-    <div id="multInfo" class="pill">SINGLE POINTS</div>
+    <div id="multInfo" class="pill">Single points</div>
   </div>
 
   <main>
     <section class="team" id="team0">
       <div class="name"></div>
       <div class="score">0</div>
-      <div class="tag">▶ IN CONTROL</div>
+      <div class="tag">▶ In control</div>
       <div class="keys"></div>
     </section>
 
     <section class="center">
       <div id="question" class="question"><span></span></div>
-      <div class="frame"><div class="board" id="board"></div></div>
+      <div class="frame"><div class="bulbs"></div><div class="board" id="board"></div></div>
       <div class="status">
         <div class="strikes" id="strikes"><span>X</span><span>X</span><span>X</span></div>
         <div id="buzzStatus"></div>
@@ -41,25 +44,49 @@
     <section class="team" id="team1">
       <div class="name"></div>
       <div class="score">0</div>
-      <div class="tag">IN CONTROL ◀</div>
+      <div class="tag">In control ◀</div>
       <div class="keys"></div>
     </section>
   </main>
 
+  <section id="lightning">
+    <div class="lg-head">
+      <div class="lg-title">Lightning Round</div>
+      <div class="lg-timer" id="lgTimer">
+        <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="44"/><circle class="ring" cx="50" cy="50" r="44" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg>
+        <span id="lgTime">20</span>
+      </div>
+      <div class="lg-player" id="lgPlayer">Player 1</div>
+    </div>
+    <div class="frame"><div class="bulbs"></div><div class="lg-board" id="lgBoard"></div></div>
+    <div class="lg-foot"><span class="lbl">Total</span><b id="lgTotal">0</b><span class="goal" id="lgGoal">Goal: 200</span></div>
+  </section>
+
   <footer id="controls">
-    <button data-cmd="arm" title="Clear the last buzz and let both teams buzz again">⚡ Arm Buzzers</button>
-    <button data-cmd="x1" class="bad" title="Wrong answer during the face-off (doesn't count as a strike)">✕ Face-off Miss</button>
-    <button data-cmd="strike" class="bad" title="Add a strike to the team in control">✕ Strike</button>
-    <button data-cmd="clearStrikes">Clear Strikes</button>
-    <span class="sep"></span>
-    <button data-cmd="control" data-team="0" class="t0">Control → <span class="tn0"></span></button>
-    <button data-cmd="control" data-team="1" class="t1">Control → <span class="tn1"></span></button>
-    <button data-cmd="award" data-team="0" class="t0">Award Bank → <span class="tn0"></span></button>
-    <button data-cmd="award" data-team="1" class="t1">Award Bank → <span class="tn1"></span></button>
-    <span class="sep"></span>
-    <button data-cmd="revealAll" title="Show remaining answers (no points)">Reveal Rest</button>
-    <button data-cmd="prev">◀ Prev</button>
-    <button data-cmd="next">Next Round ▶</button>
+    <button data-cmd="arm" class="main-only" title="Clear the last buzz and let both teams buzz again">⚡ Arm buzzers</button>
+    <button data-cmd="x1" class="bad main-only" title="Wrong answer during the face-off (doesn't count as a strike)">✕ Face-off miss</button>
+    <button data-cmd="strike" class="bad main-only" title="Add a strike to the team in control">✕ Strike</button>
+    <button data-cmd="clearStrikes" class="main-only">Clear strikes</button>
+    <span class="sep main-only"></span>
+    <button data-cmd="control" data-team="0" class="t0 main-only">Control → <span class="tn0"></span></button>
+    <button data-cmd="control" data-team="1" class="t1 main-only">Control → <span class="tn1"></span></button>
+    <button data-cmd="award" data-team="0" class="t0 main-only">Award bank → <span class="tn0"></span></button>
+    <button data-cmd="award" data-team="1" class="t1 main-only">Award bank → <span class="tn1"></span></button>
+    <span class="sep main-only"></span>
+    <button data-cmd="revealAll" class="main-only" title="Show remaining answers (no points)">Reveal rest</button>
+    <button data-cmd="prev" class="main-only">◀ Prev</button>
+    <button data-cmd="next" class="main-only">Next round ▶</button>
+    <button data-cmd="lgNew" class="gold main-only" title="Switch to the Lightning Round">⚡ Lightning Round</button>
+
+    <button data-cmd="lgTimer" data-s="20" class="lg-only">Start 20s</button>
+    <button data-cmd="lgTimer" data-s="25" class="lg-only">Start 25s</button>
+    <button data-cmd="lgTimer" data-s="0" class="lg-only">Stop timer</button>
+    <button data-cmd="lgReveal" class="lg-only">Reveal next</button>
+    <button data-cmd="lgPlayer" data-p="1" class="lg-only">Player 1</button>
+    <button data-cmd="lgPlayer" data-p="2" class="lg-only">Player 2</button>
+    <button data-cmd="lgNew" class="lg-only">New questions</button>
+    <button data-cmd="mode" data-m="main" class="gold lg-only">Back to main game</button>
+
     <span class="sep"></span>
     <button id="lobbyBtn">👥 Lobby</button>
     <button id="fsBtn">⛶ Fullscreen</button>
@@ -70,22 +97,30 @@
 <div id="conn"><i></i><span>Starting…</span></div>
 
 <div id="strikeOverlay" class="overlay"></div>
-<div id="buzzBanner" class="overlay"><div class="who"></div><div class="sub">BUZZED IN FIRST!</div><div class="player"></div></div>
-<div id="winOverlay" class="overlay"><div class="sub">AND THE WINNER IS</div><div class="who"></div><div class="sub" style="font-size:2vh;margin-top:3vh;opacity:.6">click to close</div></div>
+<div id="buzzBanner" class="overlay"><div class="who"></div><div class="sub">Buzzed in first!</div><div class="player"></div></div>
+<div id="roundCard" class="overlay"><div class="r"></div><div class="m"></div></div>
+<div id="winOverlay" class="overlay"><div class="sub">And the winner is</div><div class="who"></div><div class="sub" style="font-size:2.2vh;margin-top:3vh;color:#a9b4ee">Click to close</div></div>
 
 <div id="lobby">
+  <div class="backdrop"></div>
   <div class="logo"><div class="small">FAMILY</div><div class="big">FACE-OFF</div></div>
-  <div id="joinBox">
-    <div class="joinText">
-      <div class="step">On each buzzer laptop, go to</div>
-      <div class="url" id="joinUrl"></div>
-      <div class="codes">
-        <div><div class="lbl">ROOM</div><div class="code" id="roomCode">----</div></div>
-        <div><div class="lbl">PIN</div><div class="code" id="pinCode">••••</div>
-          <button class="mini" id="pinToggle">show</button></div>
+  <div class="joinRow">
+    <div class="joinCard">
+      <div>
+        <div class="step">Buzzer laptops: open</div>
+        <div class="url" id="joinUrl"></div>
+        <div class="codes">
+          <div><div class="lbl">ROOM</div><div class="code" id="roomCode">----</div></div>
+          <div><div class="lbl">PIN</div><div class="code" id="pinCode">••••</div><button class="mini" id="pinToggle">Show PIN</button></div>
+        </div>
       </div>
+      <div class="qr" id="joinQr"></div>
     </div>
-    <div id="joinQr"></div>
+    <div class="joinCard remote">
+      <div class="step">Host remote (phone)</div>
+      <div class="qr" id="remoteQr"></div>
+      <div class="url" id="remoteUrl"></div>
+    </div>
   </div>
   <div id="lobbyMsg"></div>
   <div class="lobbyTeams">
@@ -93,23 +128,24 @@
     <div class="lt" id="lt1"><div class="ltName"></div><div class="ltPlayers"></div></div>
   </div>
   <div class="row">
-    <button class="btn" id="startBtn">START THE SHOW</button>
+    <button class="btn" id="startBtn">Start the show</button>
     <button class="btn alt" id="lobbySetup">⚙ Setup</button>
   </div>
 </div>
 
 <dialog id="setup">
-  <header><h2>⚙ GAME SETUP</h2><button id="closeSetup">Save &amp; Close</button></header>
+  <header><h2>Game setup</h2><button id="closeSetup">Save and close</button></header>
 
   <section>
-    <h3>Room &amp; PIN</h3>
+    <h3>Room and PIN</h3>
     <p class="hint">Buzzer laptops and your phone remote join with these. Anyone with both can join, so only share them with the people in the room.</p>
     <div class="grid2">
       <div><label>Room code (4 letters)</label><input type="text" id="room" maxlength="4" autocomplete="off"></div>
       <div><label>PIN (4 digits)</label><input type="text" id="pin" maxlength="4" inputmode="numeric" autocomplete="off"></div>
     </div>
-    <button id="newCodesBtn">New random room + PIN</button>
-    <div id="hostLinkBox"><div id="qr"></div><div><b>Host remote for your phone</b>: scan this, or open <span id="hostUrl" class="hint"></span> and type the room and PIN.</div></div>
+    <button id="newCodesBtn">New random room and PIN</button>
+    <div style="display:flex;gap:14px;align-items:center;margin-top:12px"><div class="qr" id="qr"></div>
+      <p class="hint">Scan this with your phone to open the host remote with the room and PIN already filled in.</p></div>
   </section>
 
   <section>
@@ -119,21 +155,22 @@
       <div><label>Team 2 name</label><input type="text" id="tName1"></div>
       <div><label>Winning score (0 = no limit)</label><input type="number" id="target" min="0" step="50"></div>
       <div><label><input type="checkbox" id="multipliers"> Double points in round 4, triple from round 5 on</label></div>
+      <div><label><input type="checkbox" id="shuffle"> Shuffle the question order for each new game</label></div>
     </div>
-    <button id="newGameBtn" class="bad">Start a New Game (scores → 0)</button>
+    <button id="newGameBtn" class="bad">Start a new game (scores back to 0)</button>
   </section>
 
   <section>
-    <h3>Survey Questions</h3>
+    <h3>Survey questions</h3>
     <p class="hint">Question on the first line, then up to 8 answers as <code>Answer | points</code>. Leave a blank line between questions. Answers are sorted by points automatically.</p>
     <textarea id="questionsText" style="min-height:260px"></textarea>
-    <button id="sampleBtn">Load sample questions</button>
+    <button id="sampleBtn">Restore the built-in questions</button>
   </section>
 
   <section>
-    <h3>Extra: buzz from this computer's keyboard</h3>
-    <p class="hint">Optional. The laptops are the real buzzers. If you also plug keyboards into the TV computer, Team 1 uses the left half and Team 2 the right half.
-      To use particular keys instead, click <b>Learn keys</b>, press them, then click <b>Done</b>.</p>
+    <h3>Buzz from this computer's keyboard (optional)</h3>
+    <p class="hint">The laptops are the real buzzers. If you also plug keyboards into the TV computer, Team 1 uses the left half and Team 2 the right half.
+      Click <b>Learn keys</b> to pick particular keys instead.</p>
     <label><input type="checkbox" id="localKeys"> Let this computer's keyboard buzz in too</label>
     <div class="grid2">
       <div><label>Team 1 keys</label><div class="keylist" id="keys0"></div>
@@ -144,16 +181,16 @@
   </section>
 
   <section>
-    <h3>Advanced: Firebase project</h3>
-    <p class="hint">Leave this empty to use the Firebase project the website was published with (the <code>FIREBASE_CONFIG</code> repository secret, see README).
-      Anything pasted here is saved only in this browser.</p>
-    <textarea id="fbConfig" style="min-height:90px" placeholder="(using the website's built-in Firebase project)"></textarea>
+    <h3>Firebase project (advanced)</h3>
+    <p class="hint">Leave this empty to use the game's built-in Firebase project. Anything pasted here is saved only in this browser.</p>
+    <textarea id="fbConfig" style="min-height:90px" placeholder="(using the built-in Firebase project)"></textarea>
     <div id="fbStatus" class="hint">—</div>
+    <div id="awakeStatus" class="hint"></div>
   </section>
 </dialog>
 
-<script src="questions.js?v=5"></script>
-<script src="common.js?v=5"></script>
-<script src="board.js?v=5"></script>
+<script src="questions.js?v=6"></script>
+<script src="common.js?v=6"></script>
+<script src="board.js?v=6"></script>
 </body>
 </html>
