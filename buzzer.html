@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Face-Off Buzzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<style>
+  :root { --gold:#ffcf3f; --team0:#ff4d4d; --team1:#25d0c4; --red:#e8142b; --c:#3b7cff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: radial-gradient(ellipse at 50% 35%, #1f63e0 0%, #0a2a76 45%, #020820 100%); color: #fff;
+    font-family: 'Oswald', Impact, sans-serif; overflow: hidden; user-select: none; }
+  .hidden { display: none !important; }
+  .logo { font-family: 'Anton', Impact, sans-serif; font-size: 44px; color: var(--gold); text-align: center; letter-spacing: .03em;
+    text-shadow: 0 4px 0 #5a3a00, 0 0 18px rgba(255,200,60,.4); }
+  .wrap { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px; }
+  .card { background: rgba(0,0,0,.4); border: 3px solid var(--gold); border-radius: 16px; padding: 22px; width: min(440px, 94vw); }
+  label { display: block; font-size: 15px; letter-spacing: .1em; opacity: .8; margin: 12px 0 6px; }
+  input { width: 100%; font: 700 34px 'Anton', Impact, sans-serif; letter-spacing: .3em; text-align: center; text-transform: uppercase;
+    padding: 8px; border-radius: 10px; border: 2px solid #4a6cc0; background: #020c2c; color: #fff; }
+  input#nameIn { font: 22px 'Oswald', sans-serif; letter-spacing: .05em; text-transform: none; }
+  button { font-family: 'Oswald', sans-serif; font-size: 20px; letter-spacing: .05em; padding: 12px 18px; border-radius: 10px; cursor: pointer;
+    border: 2px solid var(--gold); background: linear-gradient(#ffd863, #b07d0a); color: #2a1a00; font-weight: 700; width: 100%; margin-top: 16px; }
+  .err { color: #ffb3b3; margin-top: 12px; min-height: 20px; font-size: 16px; }
+  details { margin-top: 14px; font-size: 14px; opacity: .8; }
+  details textarea { width: 100%; min-height: 90px; margin-top: 6px; background: #020c2c; color: #fff; border: 1px solid #4a6cc0; border-radius: 8px; font: 12px monospace; }
+  .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: min(760px, 94vw); }
+  .teams button { font-size: 30px; padding: 40px 10px; color: #fff; text-transform: uppercase; background: rgba(0,0,0,.4); border: 4px solid var(--tc); }
+  .teams button:hover { background: var(--tc); }
+
+  /* play screen */
+  #play { --c: #3b7cff; }
+  #play .top { position: fixed; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; font-size: 18px; letter-spacing: .08em; }
+  #play .top .team { color: var(--c); font-size: 24px; text-transform: uppercase; }
+  #play .top a { color: #9fc1ff; cursor: pointer; font-size: 15px; margin-left: 14px; }
+  #conn i { width: 10px; height: 10px; border-radius: 50%; background: #777; display: inline-block; margin-right: 6px; }
+  #conn.on i { background: #2ee86b; box-shadow: 0 0 6px #2ee86b; }
+  #q { font-size: 22px; text-align: center; max-width: 80vw; opacity: .85; min-height: 30px; }
+  #big {
+    width: min(56vh, 80vw); height: min(56vh, 80vw); border-radius: 50%; display: grid; place-items: center; text-align: center;
+    font-family: 'Anton', Impact, sans-serif; font-size: min(9vh, 12vw); line-height: 1.05; cursor: pointer; padding: 6%;
+    background: radial-gradient(circle at 35% 30%, #fff5 0, transparent 35%), radial-gradient(circle, #3a3f55, #15182a);
+    border: 10px solid #666a80; box-shadow: 0 2vh 0 #0008, inset 0 -2vh 4vh #0006; transition: transform .08s;
+  }
+  #big.armed { background: radial-gradient(circle at 35% 30%, #fff8 0, transparent 35%), radial-gradient(circle, var(--c), #000 140%);
+    border-color: #fff; animation: throb .8s ease-in-out infinite; }
+  #big.won { background: radial-gradient(circle, #fff4b0, var(--gold) 55%, #8a5a00); color: #2a1a00; border-color: #fff; animation: none; box-shadow: 0 0 80px var(--gold); }
+  #big.lost { background: radial-gradient(circle, #5a1020, #200008); border-color: var(--red); color: #ffb3b3; }
+  #big.press { transform: scale(.94) translateY(1vh); }
+  #big.nope { animation: shake .3s; }
+  @keyframes throb { 50% { box-shadow: 0 0 60px var(--c), 0 2vh 0 #0008; transform: scale(1.03); } }
+  @keyframes shake { 25% { transform: translateX(-14px); } 75% { transform: translateX(14px); } }
+  #sub { font-size: 26px; letter-spacing: .1em; text-align: center; min-height: 36px; }
+  .hint { font-size: 15px; opacity: .6; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+
+<div id="join" class="wrap">
+  <div class="logo">FACE-OFF BUZZER</div>
+  <div class="card">
+    <div>Type the room code and PIN shown on the TV.</div>
+    <label>ROOM</label><input id="roomIn" maxlength="4" autocomplete="off" placeholder="ABCD">
+    <label>PIN</label><input id="pinIn" maxlength="4" inputmode="numeric" type="password" autocomplete="off" placeholder="••••">
+    <label>YOUR NAME (optional)</label><input id="nameIn" maxlength="20" autocomplete="off" placeholder="e.g. Grandma">
+    <button id="joinBtn">JOIN GAME</button>
+    <div class="err" id="joinErr"></div>
+    <details><summary>Advanced: use a different Firebase project</summary>
+      <textarea id="cfgIn" placeholder="Paste a firebaseConfig here only if this website wasn't published with one."></textarea></details>
+  </div>
+</div>
+
+<div id="pick" class="wrap hidden">
+  <div class="logo">PICK YOUR TEAM</div>
+  <div class="teams">
+    <button data-team="0" style="--tc:var(--team0)">Team 1</button>
+    <button data-team="1" style="--tc:var(--team1)">Team 2</button>
+  </div>
+</div>
+
+<div id="play" class="wrap hidden">
+  <div class="top">
+    <div><span class="team" id="myTeam"></span> <span id="myName"></span><a id="switchTeam">switch team</a><a id="leave">leave</a></div>
+    <div id="conn"><i></i><span>connecting…</span></div>
+  </div>
+  <div id="q"></div>
+  <div id="big">WAIT…</div>
+  <div id="sub"></div>
+  <div class="hint">Press ANY key (or click the button) to buzz in</div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  const F = window.FFO, { FB, store } = F;
+  const $ = s => document.querySelector(s);
+  const show = id => ['join', 'pick', 'play'].forEach(x => $('#' + x).classList.toggle('hidden', x !== id));
+  const me = store.get('buzzer', {});
+  me.id = me.id || F.randomId();
+  let st = null, buzz = null, myTeam = null, joined = false, flash = null, lostAt = 0;
+
+  // ---- sound
+  let ctx;
+  function tone(f, d, type = 'square', v = .25, w = 0) {
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume();
+      const t = ctx.currentTime + w, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.value = f; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + d + .05);
+    } catch {}
+  }
+
+  // ---- join
+  const hashRoom = (location.hash.match(/room=([A-Za-z]{4})/) || [])[1];
+  $('#roomIn').value = F.cleanRoom(hashRoom || me.room || '');
+  $('#nameIn').value = me.name || '';
+  $('#roomIn').addEventListener('input', e => (e.target.value = F.cleanRoom(e.target.value)));
+  $('#pinIn').addEventListener('input', e => (e.target.value = F.cleanPin(e.target.value)));
+  [$('#roomIn'), $('#pinIn'), $('#nameIn')].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') join(); }));
+  $('#joinBtn').onclick = join;
+  (F.validRoom($('#roomIn').value) ? $('#pinIn') : $('#roomIn')).focus();
+
+  async function join() {
+    const room = F.cleanRoom($('#roomIn').value), pin = F.cleanPin($('#pinIn').value);
+    const err = m => ($('#joinErr').textContent = m);
+    if (!F.validRoom(room)) return err('The room code is 4 letters.');
+    if (!F.validPin(pin)) return err('The PIN is 4 digits.');
+    if ($('#cfgIn').value.trim()) store.set('fbConfig', $('#cfgIn').value.trim());
+    const e = FB.init(F.getConfig());
+    if (e === 'NO_CONFIG') return err('This website has no Firebase project set up yet. See the README.');
+    if (e) return err(e);
+    FB.join(room, pin);
+    err('Connecting…');
+    $('#joinBtn').disabled = true;
+    try {
+      const snap = await Promise.race([FB.ref('state').once('value'), new Promise((_, rej) => setTimeout(() => rej(new Error('Timed out. Check the internet connection.')), 10000))]);
+      if (!snap.exists()) { FB.key = null; return err('No game found. Check the room code and PIN on the TV.'); }
+      me.room = room; me.name = $('#nameIn').value.trim();
+      store.set('buzzer', me);
+      err('');
+      start();
+    } catch (x) { err(F.friendlyError(x)); }
+    finally { $('#joinBtn').disabled = false; }
+  }
+
+  function start() {
+    if (joined) return;
+    joined = true;
+    FB.onConnected(on => {
+      $('#conn').className = on ? 'on' : '';
+      $('#conn span').textContent = on ? 'connected' : 'reconnecting…';
+      if (on && myTeam != null) announce();
+    });
+    FB.ref('state').on('value', s => { st = s.val(); render(); });
+    FB.ref('buzz').on('value', s => {
+      const prev = buzz; buzz = s.val();
+      if (buzz && !buzz.armed && buzz.team != null && (!prev || prev.armed)) lostAt = Date.now();
+      if (buzz && !buzz.armed && buzz.team != null && (!prev || prev.armed) && myTeam != null) {
+        if (buzz.by === me.id) { tone(880, .12); tone(1320, .5, 'square', .25, .13); }
+        else if (buzz.team !== myTeam) tone(140, .5, 'sawtooth', .25);
+      }
+      render();
+    });
+    const t = me.team;
+    if (t === 0 || t === 1) pickTeam(t); else show('pick');
+    render();
+  }
+
+  // ---- team
+  document.querySelectorAll('[data-team]').forEach(b => b.onclick = () => pickTeam(+b.dataset.team));
+  function pickTeam(t) {
+    myTeam = t; me.team = t; store.set('buzzer', me);
+    announce();
+    show('play'); render();
+  }
+  function announce() {
+    const ref = FB.ref('players/' + me.id);
+    ref.onDisconnect().remove();
+    ref.set({ team: myTeam, name: me.name || '' });
+  }
+  $('#switchTeam').onclick = () => { show('pick'); };
+  $('#leave').onclick = () => { FB.ref('players/' + me.id).remove(); me.team = null; store.set('buzzer', me); location.reload(); };
+
+  // ---- buzzing
+  function press() {
+    if (myTeam == null || !joined) return;
+    const big = $('#big');
+    big.classList.add('press'); setTimeout(() => big.classList.remove('press'), 100);
+    if (buzz && !buzz.armed && buzz.team != null && buzz.team !== myTeam && Date.now() - lostAt < 3000) {
+      // Someone beat us, but record the press so the TV can show how close it was.
+      FB.ref('presses').push({ team: myTeam, armId: buzz.armId, by: me.id, at: FB.TS });
+      return;
+    }
+    if (!buzz || !buzz.armed) { big.classList.remove('nope'); void big.offsetWidth; big.classList.add('nope'); flash = 'Not yet!'; render(); setTimeout(() => { flash = null; render(); }, 900); return; }
+    const armId = buzz.armId;
+    tone(myTeam ? 740 : 554, .1);
+    FB.ref('presses').push({ team: myTeam, armId, by: me.id, at: FB.TS });
+    // First one to flip "armed" to false wins. The database runs these one at a time.
+    FB.ref('buzz').transaction(cur => (cur && cur.armed && cur.armId === armId)
+      ? { armed: false, armId, team: myTeam, by: me.id, player: me.name || '', at: Date.now() }
+      : undefined);
+  }
+  document.addEventListener('keydown', e => {
+    if ($('#play').classList.contains('hidden') || e.ctrlKey || e.metaKey || e.altKey) return;
+    e.preventDefault();
+    if (!e.repeat) press();
+  });
+  $('#big').addEventListener('pointerdown', e => { e.preventDefault(); press(); });
+
+  // ---- render
+  function render() {
+    if (myTeam == null) return;
+    const names = (st && st.teamNames) || ['Team 1', 'Team 2'];
+    document.querySelectorAll('[data-team]').forEach(b => (b.textContent = names[+b.dataset.team]));
+    $('#play').style.setProperty('--c', `var(--team${myTeam})`);
+    $('#myTeam').textContent = names[myTeam];
+    $('#myName').textContent = me.name ? '· ' + me.name : '';
+    $('#q').textContent = st && st.question ? st.question : '';
+    const big = $('#big'), sub = $('#sub');
+    big.className = '';
+    if (buzz && buzz.armed) { big.classList.add('armed'); big.textContent = 'BUZZ!'; sub.textContent = flash || 'Buzzers are live. GO!'; }
+    else if (buzz && buzz.team != null) {
+      const late = st && st.buzz && st.buzz.lateBy != null ? ` by ${(st.buzz.lateBy / 1000).toFixed(3)}s` : '';
+      if (buzz.by === me.id) { big.classList.add('won'); big.textContent = 'YOU WERE FIRST!'; sub.textContent = `Answer the question!${late ? ' Won' + late : ''}`; }
+      else if (buzz.team === myTeam) { big.classList.add('won'); big.textContent = 'YOUR TEAM GOT IT!'; sub.textContent = buzz.player ? buzz.player + ' buzzed first' : ''; }
+      else { big.classList.add('lost'); big.textContent = 'TOO SLOW!'; sub.textContent = `${names[buzz.team]} buzzed first${late}`; }
+    } else { big.textContent = 'WAIT…'; sub.textContent = flash || 'Waiting for the host to arm the buzzers'; }
+  }
+})();
+</script>
+</body>
+</html>

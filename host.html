@@ -55,11 +55,13 @@
 <div class="top"><h1>FACE-OFF HOST</h1><div id="conn"><i></i><span>not connected</span></div></div>
 
 <div id="setup" class="card hidden">
-  <div class="meta">CONNECT TO YOUR GAME</div>
-  <div>Paste the same Firebase config you used on the board, and the room code shown in Setup on the board.</div>
-  <textarea id="cfgIn" placeholder='const firebaseConfig = { apiKey: "...", databaseURL: "...", ... }'></textarea>
-  <input id="roomIn" placeholder="Room code (e.g. ABCD)">
+  <div class="meta">CONNECT TO THE TV</div>
+  <div>Type the room code and PIN from ⚙ Setup on the TV, or scan the host QR code there.</div>
+  <input id="roomIn" placeholder="ROOM (4 letters)" maxlength="4" autocomplete="off">
+  <input id="pinIn" placeholder="PIN (4 digits)" maxlength="4" inputmode="numeric" type="password" autocomplete="off">
   <button class="gold" id="connectBtn">Connect</button>
+  <details style="margin-top:10px;font-size:14px;opacity:.8"><summary>Advanced: use a different Firebase project</summary>
+    <textarea id="cfgIn" placeholder="Only needed if this website wasn't published with a Firebase config."></textarea></details>
 </div>
 
 <div id="game" class="hidden">
@@ -107,7 +109,7 @@
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="meta">BUZZ LOG (FROM FIREBASE)</div>
+    <div class="meta">BUZZERS CONNECTED</div>
     <div id="log"></div>
   </div>
 
@@ -115,50 +117,53 @@
   <button id="disconnect" style="margin-top:8px; opacity:.6">Change room / config</button>
 </div>
 
+<script src="firebase-config.js" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 <script src="common.js"></script>
 <script>
 (() => {
-  const { store, parseConfig, FB, dec } = window.FFO;
+  const F = window.FFO, { store, FB, dec } = F;
+  let players = {};
   const $ = s => document.querySelector(s);
   let st = null;
 
-  // Config comes from the QR/link (#...), or from what this phone saved last time.
+  // Room + PIN come from the QR code (#fragment, never sent to a server) or from last time on this phone.
   let saved = store.get('host', null);
   if (location.hash.length > 1) {
-    try { const d = dec(location.hash.slice(1)); saved = { cfg: d.c, room: d.r }; store.set('host', saved); history.replaceState(null, '', location.pathname); } catch {}
+    try { const d = dec(location.hash.slice(1)); if (d.r && d.p) { saved = { room: d.r, pin: d.p }; store.set('host', saved); } } catch {}
+    history.replaceState(null, '', location.pathname);
   }
-  if (saved && saved.cfg) connect(saved.cfg, saved.room); else $('#setup').classList.remove('hidden');
+  $('#roomIn').addEventListener('input', e => (e.target.value = F.cleanRoom(e.target.value)));
+  $('#pinIn').addEventListener('input', e => (e.target.value = F.cleanPin(e.target.value)));
+  if (saved && F.validRoom(saved.room) && F.validPin(saved.pin)) connect(saved.room, saved.pin);
+  else $('#setup').classList.remove('hidden');
 
   $('#connectBtn').onclick = () => {
-    const cfg = parseConfig($('#cfgIn').value);
-    const room = $('#roomIn').value.trim().toUpperCase();
-    if (!cfg || !room) return alert('Paste the Firebase config and enter the room code.');
-    store.set('host', { cfg, room });
+    const room = F.cleanRoom($('#roomIn').value), pin = F.cleanPin($('#pinIn').value);
+    if (!F.validRoom(room) || !F.validPin(pin)) return alert('Enter the 4-letter room code and the 4-digit PIN.');
+    if ($('#cfgIn').value.trim()) store.set('fbConfig', $('#cfgIn').value.trim());
+    store.set('host', { room, pin });
     location.reload();
   };
   $('#disconnect').onclick = () => { store.set('host', null); location.reload(); };
 
-  function connect(cfg, room) {
-    const err = FB.init(cfg, room);
-    if (err) { $('#setup').classList.remove('hidden'); return alert(err); }
+  async function connect(room, pin) {
+    const err = FB.init(F.getConfig());
+    if (err) {
+      $('#setup').classList.remove('hidden');
+      return alert(err === 'NO_CONFIG' ? 'This website has no Firebase project set up yet (see README).' : err);
+    }
+    FB.join(room, pin);
+    try {
+      const snap = await FB.ref('state').once('value');
+      if (!snap.exists()) { store.set('host', null); $('#setup').classList.remove('hidden'); $('#roomIn').value = room; return alert('No game found with that room code and PIN. Is the TV page open?'); }
+    } catch (e) { $('#setup').classList.remove('hidden'); return alert(F.friendlyError(e)); }
     $('#game').classList.remove('hidden');
-    FB.db.ref('.info/connected').on('value', s => {
-      $('#conn').className = s.val() ? 'on' : '';
-      $('#conn span').textContent = (s.val() ? 'live · room ' : 'connecting · room ') + FB.room;
+    FB.onConnected(on => {
+      $('#conn').className = on ? 'on' : '';
+      $('#conn span').textContent = (on ? 'live · room ' : 'connecting · room ') + room;
     });
-    FB.ref('state').on('value', s => { st = s.val(); render(); },
-      e => alert('Firebase error: ' + e.message + '\nCheck your Realtime Database rules.'));
-    FB.ref('buzzLog').limitToLast(15).on('value', s => {
-      const rows = [];
-      s.forEach(c => { rows.unshift(c.val()); });
-      $('#log').innerHTML = '';
-      rows.forEach(r => {
-        const d = document.createElement('div');
-        const t = r.at ? new Date(r.at).toLocaleTimeString() : '';
-        d.textContent = `${t}  R${r.round}  ${r.name} ${r.kind === 'first' ? 'BUZZED FIRST' : `late by ${(r.lateBy / 1000).toFixed(3)}s`}`;
-        $('#log').appendChild(d);
-      });
-    });
+    FB.ref('state').on('value', s => { st = s.val(); render(); }, e => alert(F.friendlyError(e)));
+    FB.ref('players').on('value', s => { players = s.val() || {}; render(); });
   }
 
   function send(cmd) {
@@ -178,12 +183,20 @@
     const names = st.teamNames || ['Team One', 'Team Two'];
     const bc = $('#buzzCard');
     bc.className = 'card';
+    $('#log').innerHTML = '';
+    [0, 1].forEach(t => {
+      const list = Object.values(players).filter(p => p && p.team === t).map(p => p.name || 'buzzer');
+      const d = document.createElement('div');
+      d.textContent = `${names[t]}: ${list.length ? list.join(', ') : 'none yet'}`;
+      $('#log').appendChild(d);
+    });
     if (st.armed) { bc.classList.add('armed'); bc.querySelector('.big').textContent = 'Buzzers armed'; bc.querySelector('.small').textContent = 'Waiting for someone to buzz…'; }
     else if (st.buzz) {
       bc.classList.add('t' + st.buzz.team);
       bc.querySelector('.big').textContent = names[st.buzz.team] + ' buzzed first!';
+      if (st.buzz.player) bc.querySelector('.big').textContent += ' (' + st.buzz.player + ')';
       bc.querySelector('.small').textContent = st.buzz.lateBy != null ? `${names[1 - st.buzz.team]} was ${(st.buzz.lateBy / 1000).toFixed(3)}s behind` : '';
-    } else { bc.querySelector('.big').textContent = 'Buzzers off'; bc.querySelector('.small').textContent = 'Tap ARM to start a face-off'; }
+    } else { bc.querySelector('.big').textContent = 'Buzzers off'; bc.querySelector('.small').textContent = 'Tap ARM for the next face-off'; }
 
     $('#roundMeta').textContent = `ROUND ${st.round + 1} / ${st.totalRounds} · ${['', 'SINGLE', 'DOUBLE', 'TRIPLE'][st.multiplier] || ''} POINTS`;
     $('#question').textContent = st.question || '(no question)';

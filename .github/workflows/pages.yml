@@ -1,0 +1,58 @@
+# Publishes the game to GitHub Pages.
+# The Firebase config is NOT in the repository: it comes from the FIREBASE_CONFIG repository secret
+# and is written into firebase-config.js only in the published site.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
+        run: |
+          mkdir _site
+          cp *.html *.js *.css .nojekyll _site/
+          python3 - <<'PY'
+          import json, os, re
+          raw = os.environ.get("FIREBASE_CONFIG", "").strip()
+          cfg = None
+          if raw:
+              # Accept JSON or the JS snippet from the Firebase console: keep only the { ... } object.
+              body = raw[raw.find("{"):raw.rfind("}") + 1]
+              try:
+                  cfg = json.loads(body)
+              except ValueError:
+                  cfg = dict(re.findall(r'(\w+)\s*:\s*["\'`]([^"\'`]*)["\'`]', body))
+          if not cfg or "apiKey" not in cfg:
+              print("::warning::FIREBASE_CONFIG secret is missing or unreadable. The buzzers won't connect until it's added.")
+              cfg = None
+          with open("_site/firebase-config.js", "w") as f:
+              f.write("window.FIREBASE_CONFIG = %s;\n" % json.dumps(cfg))
+          PY
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
