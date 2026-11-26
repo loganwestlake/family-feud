@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Family Face-Off</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <div class="logo"><div class="small">FAMILY</div><div class="big">FACE-OFF</div></div>
+  <div class="topline">
+    <div id="roundInfo" class="pill">ROUND 1</div>
+    <div class="bank"><div class="label">BANK</div><div id="bank" class="num">0</div></div>
+    <div id="multInfo" class="pill">SINGLE POINTS</div>
+  </div>
+
+  <main>
+    <section class="team" id="team0">
+      <div class="name"></div>
+      <div class="score">0</div>
+      <div class="tag">▶ IN CONTROL</div>
+      <div class="keys"></div>
+    </section>
+
+    <section class="center">
+      <div id="question" class="question"><span></span></div>
+      <div class="frame"><div class="board" id="board"></div></div>
+      <div class="status">
+        <div class="strikes" id="strikes"><span>X</span><span>X</span><span>X</span></div>
+        <div id="buzzStatus"></div>
+      </div>
+    </section>
+
+    <section class="team" id="team1">
+      <div class="name"></div>
+      <div class="score">0</div>
+      <div class="tag">IN CONTROL ◀</div>
+      <div class="keys"></div>
+    </section>
+  </main>
+
+  <footer id="controls">
+    <button data-cmd="arm" title="Clear the last buzz and let both teams buzz again">⚡ Arm Buzzers</button>
+    <button data-cmd="x1" class="bad" title="Wrong answer during the face-off (doesn't count as a strike)">✕ Face-off Miss</button>
+    <button data-cmd="strike" class="bad" title="Add a strike to the team in control">✕ Strike</button>
+    <button data-cmd="clearStrikes">Clear Strikes</button>
+    <span class="sep"></span>
+    <button data-cmd="control" data-team="0" class="t0">Control → <span class="tn0"></span></button>
+    <button data-cmd="control" data-team="1" class="t1">Control → <span class="tn1"></span></button>
+    <button data-cmd="award" data-team="0" class="t0">Award Bank → <span class="tn0"></span></button>
+    <button data-cmd="award" data-team="1" class="t1">Award Bank → <span class="tn1"></span></button>
+    <span class="sep"></span>
+    <button data-cmd="revealAll" title="Show remaining answers (no points)">Reveal Rest</button>
+    <button data-cmd="prev">◀ Prev</button>
+    <button data-cmd="next">Next Round ▶</button>
+    <span class="sep"></span>
+    <button id="fsBtn">⛶ Fullscreen</button>
+    <button id="setupBtn">⚙ Setup</button>
+  </footer>
+</div>
+
+<div id="conn"><i></i><span>Firebase off</span></div>
+
+<div id="strikeOverlay" class="overlay"></div>
+<div id="buzzBanner" class="overlay"><div class="who"></div><div class="sub">BUZZED IN FIRST!</div></div>
+<div id="winOverlay" class="overlay"><div class="sub">AND THE WINNER IS</div><div class="who"></div><div class="sub" style="font-size:2vh;margin-top:3vh;opacity:.6">click to close</div></div>
+
+<div id="splash">
+  <div class="logo"><div class="small">FAMILY</div><div class="big">FACE-OFF</div></div>
+  <p>Plug in two keyboards. <b>Team 1</b> slams the <b>LEFT half</b> of their keyboard, <b>Team 2</b> slams the <b>RIGHT half</b> of theirs.
+     The host runs the board with the mouse (bottom bar) or from a phone. Open <b>Setup</b> to change keys, questions, and Firebase.</p>
+  <div class="row">
+    <button class="btn" id="startBtn">START THE SHOW</button>
+    <button class="btn" id="splashSetup">⚙ Setup</button>
+  </div>
+</div>
+
+<dialog id="setup">
+  <header><h2>⚙ GAME SETUP</h2><button id="closeSetup">Save &amp; Close</button></header>
+
+  <section>
+    <h3>Teams</h3>
+    <div class="grid2">
+      <div><label>Team 1 name</label><input type="text" id="tName0"></div>
+      <div><label>Team 2 name</label><input type="text" id="tName1"></div>
+      <div><label>Winning score (0 = no limit)</label><input type="number" id="target" min="0" step="50"></div>
+      <div><label><input type="checkbox" id="multipliers"> Double points in round 4, triple from round 5 on</label></div>
+    </div>
+    <button id="newGameBtn" class="bad">Start a New Game (scores → 0)</button>
+  </section>
+
+  <section>
+    <h3>Buzzer Keys</h3>
+    <p class="hint">A browser can't tell two USB keyboards apart — it just sees which key was pressed. So each team owns a different set of keys.
+      Default: Team 1 = left half of the keyboard, Team 2 = right half. Want one big key each instead? Click <b>Learn keys</b>,
+      press the key(s) for that team, then click <b>Done</b>.</p>
+    <div class="grid2">
+      <div>
+        <label>Team 1 keys</label>
+        <div class="keylist" id="keys0"></div>
+        <button data-learn="0">Learn keys</button><button data-defaults="0">Defaults</button>
+      </div>
+      <div>
+        <label>Team 2 keys</label>
+        <div class="keylist" id="keys1"></div>
+        <button data-learn="1">Learn keys</button><button data-defaults="1">Defaults</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Survey Questions</h3>
+    <p class="hint">Question on the first line, then up to 8 answers as <code>Answer | points</code>. Leave a blank line between questions. Answers are sorted by points automatically.</p>
+    <textarea id="questionsText" style="min-height:260px"></textarea>
+    <button id="sampleBtn">Load sample questions</button>
+  </section>
+
+  <section>
+    <h3>Firebase (live buzzer log + phone remote)</h3>
+    <p class="hint">Optional. Paste the <code>firebaseConfig</code> from your Firebase project (Project settings → Your apps → Web app). It must include <code>databaseURL</code>.
+      The game works fine without Firebase; with it, every buzz is recorded and you can run the show from your phone.</p>
+    <label>Firebase config</label>
+    <textarea id="fbConfig" style="min-height:120px" placeholder='const firebaseConfig = { apiKey: "...", authDomain: "...", databaseURL: "https://...firebaseio.com", projectId: "...", ... };'></textarea>
+    <div class="grid2">
+      <div><label>Room code</label><input type="text" id="room" maxlength="12"></div>
+      <div><label>Status</label><div id="fbStatus" class="hint" style="margin-top:8px">—</div></div>
+    </div>
+    <div id="hostLinkBox"><div id="qr"></div><div><b>Host remote link</b> (open on your phone):<br><a id="hostLink" target="_blank"></a>
+      <p class="hint">The phone can only open this link if this folder is hosted online (e.g. GitHub Pages or Firebase Hosting) — see README.</p></div></div>
+  </section>
+</dialog>
+
+<script src="questions.js"></script>
+<script src="common.js"></script>
+<script src="board.js"></script>
+</body>
+</html>
