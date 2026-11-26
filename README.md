@@ -16,25 +16,23 @@ who was first. The TV shows the winner and how many milliseconds the other team 
 1. Go to <https://console.firebase.google.com> and open (or create) your project.
 2. **Build → Realtime Database → Create Database.** Pick **United States (us-central1)**, then **Start in locked mode**.
 3. On the **Rules** tab, paste the contents of [`database.rules.json`](database.rules.json) and click **Publish**.
+   (If you skip this, the TV lobby shows a **Copy the rules** button and a link straight to that page.)
    These rules only allow reading or writing a game if you know its room code **and** PIN, and nobody can list games.
 4. **Project settings ⚙ → Your apps → Web app**: copy the `firebaseConfig = { ... }` block.
 
-### 2. Put the config in a GitHub secret (it's never in the code)
-1. On GitHub, go to this repo's **Settings → Secrets and variables → Actions → New repository secret**.
-2. **Name:** `FIREBASE_CONFIG`. **Secret:** paste the whole `{ apiKey: ..., ... }` block (the rest of the snippet is fine too).
+### 2. Firebase settings
+Your project's web settings are in [`firebase-config.js`](firebase-config.js). They aren't secret: every browser running
+the game downloads them, and Google's Firebase docs say so. The database rules are what protect your data.
+(Optional: if you add a `FIREBASE_CONFIG` repository secret, the deploy uses that instead.)
 
-The deploy workflow writes it into the published website only. It's never committed to the repo.
-
-### 3. GitHub Pages
-1. Go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**.
-2. Go to **Actions → Deploy to GitHub Pages → Run workflow**. It also runs on every push to `main`.
-3. The game is at `https://<your-username>.github.io/family-feud/`.
+### 3. GitHub Pages (already set up)
+**Settings → Pages → Source: GitHub Actions.** Every push to `claude/serene-euler-flw9ni` publishes the site.
+GitHub's `github-pages` environment only allows that branch. To publish from `main`, allow `main` under
+**Settings → Environments → github-pages → Deployment branches**, then add `main` to `.github/workflows/pages.yml`.
 
 ### 4. Lock down the API key (recommended)
-Firebase web config values can't be truly hidden, because every browser that runs the game has to download them.
-What protects you is the database rules (step 1) plus limiting the key to your website:
-[Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials) → your
-"Browser key" → **Application restrictions: Websites**. Add `https://<your-username>.github.io/*`, then **Save**.
+In [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials), open your
+"Browser key" and set **Application restrictions: Websites** to `https://loganwestlake.github.io/*`.
 
 ## Playing
 
@@ -77,4 +75,5 @@ lines, with a blank line between questions.
 - `common.js`: shared Firebase/room/PIN helpers
 - `questions.js`: sample questions
 - `database.rules.json`: Realtime Database rules to paste into Firebase
-- `.github/workflows/pages.yml`: deploys to GitHub Pages and injects the `FIREBASE_CONFIG` secret
+- `firebase-config.js`: your Firebase project's web settings
+- `.github/workflows/pages.yml`: deploys to GitHub Pages

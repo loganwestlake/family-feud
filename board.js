@@ -446,10 +446,28 @@
     c.className = cls; c.querySelector('span').textContent = text;
     $('#fbStatus').textContent = text;
   }
+  const RULES = JSON.stringify({ rules: { '.read': false, '.write': false, games: { $game: {
+    '.read': '$game.matches(/^[A-Z]{4}-[0-9]{4}$/)', '.write': '$game.matches(/^[A-Z]{4}-[0-9]{4}$/)' } } } }, null, 2);
+  let rulesHelpShown = false;
   function fbError(e) {
     const msg = F.friendlyError(e);
     setConn('err', msg);
-    $('#lobbyMsg').textContent = '⚠ ' + msg;
+    if (!/permission/i.test(msg)) { $('#lobbyMsg').textContent = '⚠ ' + msg; return; }
+    if (rulesHelpShown) return;
+    rulesHelpShown = true;
+    // One-time Firebase step: show a copy button and a direct link to the rules page.
+    const cfg = F.getConfig() || {};
+    const url = `https://console.firebase.google.com/project/${cfg.projectId}/database/${cfg.projectId}-default-rtdb/rules`;
+    const box = $('#lobbyMsg');
+    box.innerHTML = `⚠ Firebase is blocking the game. One-time fix: <b>1.</b> <button class="mini" id="copyRules">Copy the rules</button>
+      <b>2.</b> <a id="rulesLink" target="_blank" style="color:var(--gold)">open the Firebase rules page</a>, select everything there, paste, click <b>Publish</b>.
+      <b>3.</b> Reload this page.`;
+    $('#rulesLink').href = url;
+    $('#copyRules').onclick = async ev => {
+      try { await navigator.clipboard.writeText(RULES); ev.target.textContent = 'Copied ✓'; }
+      catch { prompt('Copy these rules:', RULES); }
+    };
+    $('#lobby').classList.remove('hidden');
   }
   function fbStart() {
     const err = FB.init(F.getConfig());

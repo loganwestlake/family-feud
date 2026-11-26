@@ -1,11 +1,12 @@
 # Publishes the game to GitHub Pages.
-# The Firebase config is NOT in the repository: it comes from the FIREBASE_CONFIG repository secret
-# and is written into firebase-config.js only in the published site.
+# Uses the committed firebase-config.js, unless a FIREBASE_CONFIG repository secret is set (then that wins).
+# Runs from claude/serene-euler-flw9ni because the github-pages environment only allows that branch;
+# to deploy from main, allow main in Settings -> Environments -> github-pages and add it below.
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, claude/serene-euler-flw9ni]
+    branches: [claude/serene-euler-flw9ni]
   workflow_dispatch:
 
 permissions:
@@ -43,11 +44,12 @@ jobs:
                   cfg = json.loads(body)
               except ValueError:
                   cfg = dict(re.findall(r'(\w+)\s*:\s*["\'`]([^"\'`]*)["\'`]', body))
-          if not cfg or "apiKey" not in cfg:
-              print("::warning::FIREBASE_CONFIG secret is missing or unreadable. The buzzers won't connect until it's added.")
-              cfg = None
-          with open("_site/firebase-config.js", "w") as f:
-              f.write("window.FIREBASE_CONFIG = %s;\n" % json.dumps(cfg))
+          if cfg and "apiKey" in cfg:
+              with open("_site/firebase-config.js", "w") as f:
+                  f.write("window.FIREBASE_CONFIG = %s;\n" % json.dumps(cfg))
+              print("Using FIREBASE_CONFIG secret")
+          else:
+              print("Using committed firebase-config.js")
           PY
 
       - uses: actions/configure-pages@v5
