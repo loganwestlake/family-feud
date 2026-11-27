@@ -39,6 +39,7 @@
   .btn.go { background: radial-gradient(circle, var(--team1), #001a18 140%); border-color: #fff; }
   .btn.locked { background: repeating-linear-gradient(135deg, #5a1020 0 10px, #3a0614 10px 20px); border-color: var(--red); }
   .btn.won { background: radial-gradient(circle, #fff4b0, var(--gold) 55%, #8a5a00); color: #2a1a00; border-color: #fff; }
+  .btn.blocked { background: radial-gradient(circle, #3b2a5c, #150a26); border-color: #8a6bd1; color: #d9c9ff; }
   .btn.lost { background: radial-gradient(circle, #5a1020, #200008); border-color: var(--red); color: #ffb3b3; }
   .state small { display: block; font-size: .78em; color: var(--muted); line-height: 1.2; }
   .state strong { display: block; font-size: .9em; }
@@ -70,13 +71,13 @@
       <h2>The rules</h2>
       <ol>
         <li><span><b>Face-off.</b> One player from each team goes to their team's buzzer laptop. The host reads a survey question.</span></li>
-        <li><span><b>Wait for BUZZ!</b> The buzzers show <b>Get ready</b> for a moment, then turn to <b>BUZZ!</b> at a random time. Press one key when you see it.</span></li>
+        <li><span><b>Wait for BUZZ!</b> The buzzers stay off until the host starts the face-off. Then they show <b>Get ready</b> for a moment and turn to <b>BUZZ!</b> at a random time. Press one key when you see it.</span></li>
         <li><span><b>No early presses.</b> Pressing before BUZZ! locks your buzzer for 2 seconds, and every extra press restarts the lock. Mashing the space bar only locks you out.</span></li>
         <li><span><b>First to buzz answers.</b> If the other player gives a higher answer, their team takes the board instead.</span></li>
         <li><span><b>Play the board.</b> The team in control takes turns guessing. Every answer on the board adds its points to that team's score right away.</span></li>
-        <li><span><b>Three strikes.</b> A wrong guess earns an X. After three X's, the other team huddles and gets <b>one guess to steal</b> every point from the round.</span></li>
+        <li><span><b>Three strikes.</b> A wrong guess earns an X. After three X's, that team's buzzer is <b>blocked</b>, and the other team huddles and gets <b>one guess to steal</b> every point from the round.</span></li>
         <li><span><b>Bigger rounds.</b> Round 4 is worth double points, and from round 5 on it's triple.</span></li>
-        <li><span><b>Winning.</b> The first team to <b>300 points</b> wins.</span></li>
+        <li><span><b>Winning.</b> The first team to <b>300 points</b> wins. The TV also keeps a <b>Fastest fingers</b> list of everyone's quickest buzz-in.</span></li>
         <li><span><b>Lightning Round.</b> Two players from the same team answer five quick questions against the clock: 20 seconds for the first, 25 for the second, who can't repeat the first player's answers. Together they need 200 points.</span></li>
       </ol>
       <div class="house">
@@ -105,13 +106,14 @@
         <div class="state"><div class="btn locked">TOO EARLY!</div><strong>Striped red</strong><small>You pressed early. Locked for 2 seconds.</small></div>
         <div class="state"><div class="btn won">YOU WERE FIRST!</div><strong>Gold</strong><small>Shout your answer!</small></div>
         <div class="state"><div class="btn lost">TOO SLOW!</div><strong>Dark red</strong><small>The other team got there first.</small></div>
+        <div class="state"><div class="btn blocked">BLOCKED</div><strong>Purple</strong><small>The host blocked your team for now, for example during a steal.</small></div>
       </div>
     </section>
   </div>
 
   <div class="print"><button onclick="window.print()">Print these rules</button></div>
 </div>
-<div id="appVersion" style="position:fixed;right:10px;bottom:6px;font:600 14px/1 'Barlow Condensed','Arial Narrow',sans-serif;color:rgba(255,248,231,.6);background:rgba(5,10,38,.55);padding:4px 8px;border-radius:6px">v1.9</div>
+<div id="appVersion" style="position:fixed;right:10px;bottom:6px;font:600 14px/1 'Barlow Condensed','Arial Narrow',sans-serif;color:rgba(255,248,231,.6);background:rgba(5,10,38,.55);padding:4px 8px;border-radius:6px">v2.0</div>
 <script>if (/embed=1/.test(location.search)) { document.body.classList.add('embed'); document.getElementById('appVersion').remove(); }</script>
 </body>
 </html>

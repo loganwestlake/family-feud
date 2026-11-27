@@ -6,7 +6,7 @@
 window.FFO = (() => {
   // Bump this with every release. It shows in the bottom-right corner of every screen, so you can
   // tell at a glance whether a device has loaded the latest version (if not: Ctrl + Shift + R).
-  const VERSION = '1.9';
+  const VERSION = '2.0';
   function showVersion() {
     if (document.getElementById('appVersion')) return;
     const el = document.createElement('div');

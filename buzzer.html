@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=9" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<script src="firebase-config.js?v=10" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 <style>
   :root { --gold:#f7c548; --team0:#ff5a4e; --team1:#1fd1c1; --red:#ff2d3f; --c:#1f5bff; --ivory:#fff8e7;
     --display:'Bungee', Impact, sans-serif; --text:'Barlow Condensed', 'Arial Narrow', sans-serif; }
@@ -54,6 +54,7 @@
   #big.ready { background: radial-gradient(circle at 35% 30%, #fff5 0, transparent 35%), radial-gradient(circle, #b8741a, #3a2200);
     border-color: #ffb347; color: #fff3d6; }
   #big.locked { background: repeating-linear-gradient(135deg, #5a1020 0 22px, #3a0614 22px 44px); border-color: var(--red); color: #fff; }
+  #big.blocked { background: radial-gradient(circle, #3b2a5c, #150a26); border-color: #8a6bd1; color: #d9c9ff; font-size: min(7vh, 10vw); }
   #big.press { transform: scale(.94) translateY(1vh); }
   #big.nope { animation: shake .3s; }
   @keyframes throb { 50% { box-shadow: 0 0 60px var(--c), 0 2vh 0 #0008; transform: scale(1.03); } }
@@ -101,6 +102,7 @@
       <li><span>When it turns your team color and says <b>BUZZ!</b>, press <b>any key once</b>.</span></li>
       <li><span>Press too early and your buzzer <b>locks for 2 seconds</b> <span class="dot" style="background:#ff2d3f"></span>. Mashing keeps it locked. One clean press wins.</span></li>
       <li><span><b>Gold</b> means you were first: shout your answer! <b>Red</b> means the other team got there first.</span></li>
+      <li><span><b>Purple</b> means the host blocked your team for now (for example, the other team is stealing). Just wait.</span></li>
     </ol>
   </div>
   </div>
@@ -127,10 +129,11 @@
     <span><i style="background:#b8741a"></i>Get ready, hands off</span>
     <span><i style="background:var(--c)"></i>BUZZ! Press one key</span>
     <span><i style="background:var(--red)"></i>Too early: locked 2s</span>
+    <span><i style="background:#8a6bd1"></i>Blocked by the host</span>
   </div>
 </div>
 
-<script src="common.js?v=9"></script>
+<script src="common.js?v=10"></script>
 <script>
 (() => {
   const F = window.FFO, { FB, store } = F;
@@ -235,8 +238,10 @@
   $('#leave').onclick = () => { FB.ref('players/' + me.id).remove(); me.team = null; store.set('buzzer', me); location.reload(); };
 
   // ---- buzzing
+  const iAmBlocked = () => !!(buzz && buzz.blocked && buzz.blocked[myTeam]);
   function press() {
     if (myTeam == null || !joined) return;
+    if (iAmBlocked()) return;
     const big = $('#big');
     big.classList.add('press'); setTimeout(() => big.classList.remove('press'), 100);
     if (buzz && !buzz.armed && buzz.team != null && buzz.team !== myTeam && Date.now() - lostAt < 3000) {
@@ -255,7 +260,7 @@
     tone(myTeam ? 740 : 554, .1);
     FB.ref('presses').push({ team: myTeam, armId, by: me.id, at: FB.TS });
     // First one to flip "armed" to false wins. The database runs these one at a time.
-    FB.ref('buzz').transaction(cur => (cur && cur.armed && cur.armId === armId)
+    FB.ref('buzz').transaction(cur => (cur && cur.armed && cur.armId === armId && !(cur.blocked && cur.blocked[myTeam]))
       ? { armed: false, armId, team: myTeam, by: me.id, player: me.name || '', at: Date.now() }
       : undefined);
   }
@@ -278,7 +283,11 @@
     const big = $('#big'), sub = $('#sub');
     const keepNope = big.classList.contains('nope');
     big.className = keepNope ? 'nope' : '';
-    if (isLocked() && !(buzz && buzz.team != null && !buzz.armed)) {
+    if (iAmBlocked() && !(buzz.team != null && !buzz.armed)) {
+      big.classList.add('blocked'); big.textContent = 'BLOCKED';
+      sub.textContent = "The host blocked your team's buzzer for now. Hang tight!";
+    }
+    else if (isLocked() && !(buzz && buzz.team != null && !buzz.armed)) {
       big.classList.add('locked'); big.textContent = 'TOO EARLY!';
       sub.textContent = `Locked for ${((lockedUntil - Date.now()) / 1000).toFixed(1)}s. Hands off until it says BUZZ!`;
     }

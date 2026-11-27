@@ -6,11 +6,11 @@
 <title>Family Face-Off</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="firebase-config.js?v=9" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<script src="firebase-config.js?v=10" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 </head>
 <body class="mode-main">
 <div class="stage" aria-hidden="true"><div class="floor"></div></div>
@@ -67,6 +67,8 @@
     <button data-cmd="strike" data-team="0" class="bad t0 main-only">✕ Strike <span class="tn0"></span></button>
     <button data-cmd="strike" data-team="1" class="bad t1 main-only">✕ Strike <span class="tn1"></span></button>
     <button data-cmd="clearStrikes" class="main-only">Clear X's</button>
+    <button data-cmd="block" data-team="0" class="t0 main-only" title="Stop this team from buzzing (unblocks on the next round)">🚫 Block <span class="tn0"></span></button>
+    <button data-cmd="block" data-team="1" class="t1 main-only" title="Stop this team from buzzing (unblocks on the next round)">🚫 Block <span class="tn1"></span></button>
     <span class="sep main-only"></span>
     <button data-cmd="control" data-team="0" class="t0 main-only" title="Round points go to this team (face-off or steal)">Points → <span class="tn0"></span></button>
     <button data-cmd="control" data-team="1" class="t1 main-only" title="Round points go to this team (face-off or steal)">Points → <span class="tn1"></span></button>
@@ -86,6 +88,7 @@
     <button data-cmd="mode" data-m="main" class="gold lg-only">Back to main game</button>
 
     <span class="sep"></span>
+    <button id="undoBtn" class="main-only" title="Take back the last action">↶ Undo</button>
     <button id="rulesBtn">📜 Rules</button>
     <button id="resetBtn" class="bad">↺ Reset game</button>
     <button id="lobbyBtn">👥 Lobby</button>
@@ -97,10 +100,12 @@
 <div id="conn"><i></i><span>Starting…</span></div>
 
 <div id="strikeOverlay" class="overlay"></div>
-<div id="buzzBanner" class="overlay"><div class="who"></div><div class="sub">Buzzed in first!</div><div class="player"></div></div>
+<div id="buzzBanner" class="overlay"><div class="who"></div><div class="sub">Buzzed in first!</div><div class="player"></div><div class="rt"></div></div>
+<div id="toast" role="status"></div>
 <div id="roundCard" class="overlay"><div class="r"></div><div class="m"></div></div>
 <div id="rules" class="overlay"><iframe title="Rules"></iframe><button id="rulesClose">Close rules</button></div>
-<div id="winOverlay" class="overlay"><div class="sub">And the winner is</div><div class="who"></div><div class="sub" style="font-size:2.2vh;margin-top:3vh;color:#a9b4ee">Click to close</div></div>
+<div id="winOverlay" class="overlay"><div class="sub">And the winner is</div><div class="who"></div>
+  <div class="fingers hidden" id="winFingers"><h3>Fastest fingers</h3><ol></ol></div><div class="sub" style="font-size:2.2vh;margin-top:3vh;color:#a9b4ee">Click to close</div></div>
 
 <div id="lobby">
   <div class="backdrop"></div>
@@ -124,6 +129,7 @@
     </div>
   </div>
   <div id="lobbyMsg"></div>
+  <div class="fingers hidden" id="lobbyFingers"><h3>Fastest fingers</h3><ol></ol></div>
   <div class="lobbyTeams">
     <div class="lt" id="lt0"><div class="ltName"></div><div class="ltPlayers"></div></div>
     <div class="lt" id="lt1"><div class="ltName"></div><div class="ltPlayers"></div></div>
@@ -191,8 +197,8 @@
   </section>
 </dialog>
 
-<script src="questions.js?v=9"></script>
-<script src="common.js?v=9"></script>
-<script src="board.js?v=9"></script>
+<script src="questions.js?v=10"></script>
+<script src="common.js?v=10"></script>
+<script src="board.js?v=10"></script>
 </body>
 </html>

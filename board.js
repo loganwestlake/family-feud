@@ -54,12 +54,14 @@
     if (settings.shuffle) for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
     return o;
   };
-  const freshRound = () => ({ revealed: [], banked: [], strikes: [0, 0], bank: 0, bankOpen: true, armed: false, ready: false, armId: null, buzz: null, control: null });
-  const newGame = () => Object.assign({ scores: [0, 0], round: 0, winner: null, order: makeOrder(), mode: 'main', lg: null }, freshRound());
+  const freshRound = () => ({ revealed: [], banked: [], strikes: [0, 0], blocked: [false, false], swept: false, bank: 0, bankOpen: true, armed: false, ready: false, armId: null, buzz: null, control: null });
+  const newGame = () => Object.assign({ scores: [0, 0], round: 0, winner: null, fingers: {}, order: makeOrder(), mode: 'main', lg: null }, freshRound());
   let state = Object.assign(newGame(), store.get('state', {}));
   if (!Array.isArray(state.order) || state.order.length !== questions.length) state.order = makeOrder();
   state.round = Math.min(state.round, Math.max(0, questions.length - 1));
   if (!Array.isArray(state.strikes)) state.strikes = [0, 0];
+  if (!Array.isArray(state.blocked)) state.blocked = [false, false];
+  if (!state.fingers) state.fingers = {};
   const qAt = r => questions[state.order[r]];
 
   const mult = r => !settings.multipliers ? 1 : r < 3 ? 1 : r === 3 ? 2 : 3;
@@ -196,7 +198,8 @@
       el.classList.toggle('control', state.control === t);
       el.classList.toggle('buzzed', !!state.buzz && state.buzz.team === t);
       const n = teamPlayers(t).length;
-      el.querySelector('.keys').textContent = fbOn
+      el.classList.toggle('blocked', !!state.blocked[t]);
+      el.querySelector('.keys').textContent = state.blocked[t] ? '🚫 Buzzer blocked' : fbOn
         ? (n ? `${n} buzzer${n > 1 ? 's' : ''} connected` : 'No buzzer connected')
         : (settings.localKeys ? (t === 0 ? 'Buzz: left side of keyboard' : 'Buzz: right side of keyboard') : '');
       $$('.tn' + t).forEach(s => (s.textContent = settings.teamNames[t]));
@@ -209,8 +212,9 @@
     else if (state.buzz) {
       const who = state.buzz.player ? ` (${state.buzz.player})` : '';
       const late = state.buzz.lateBy != null ? `. ${settings.teamNames[1 - state.buzz.team]} was ${(state.buzz.lateBy / 1000).toFixed(3)}s late` : '';
-      bs.textContent = `${settings.teamNames[state.buzz.team]}${who} buzzed first${late}`;
-    } else bs.textContent = state.control != null ? `${settings.teamNames[state.control]} has control` : 'Buzzers locked. Arm them for the face-off';
+      const rt = state.buzz.reaction != null ? ` in ${(state.buzz.reaction / 1000).toFixed(2)}s` : '';
+      bs.textContent = `${settings.teamNames[state.buzz.team]}${who} buzzed first${rt}${late}`;
+    } else bs.textContent = state.control != null ? `${settings.teamNames[state.control]} has control` : 'Buzzers off. Start the face-off when everyone is ready';
   }
 
   // Round points belong to whichever team has control; they lock in when the round changes.
@@ -240,10 +244,19 @@
     o.style.setProperty('--c', `var(--team${team})`);
     o.querySelector('.who').textContent = settings.teamNames[team];
     o.querySelector('.player').textContent = player || '';
+    o.querySelector('.rt').textContent = '';
     o.classList.add('show');
     flashBulbs(1500);
     clearTimeout(bTimer);
     bTimer = setTimeout(() => o.classList.remove('show'), 2200);
+  }
+  let tTimer;
+  function toast(text, ms = 1800) {
+    const el = $('#toast');
+    el.textContent = text;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(tTimer);
+    tTimer = setTimeout(() => el.classList.remove('show'), ms);
   }
   let rTimer;
   function showCard(big, small) {
@@ -263,6 +276,7 @@
     o.querySelector('.sub').textContent = sub;
     if (o.classList.contains('show') && shownWinner === title) return;
     shownWinner = title;
+    renderFingers($('#winFingers'));
     o.classList.add('show');
     flashBulbs(4000);
     const colors = ['#f7c548', '#ff5a4e', '#1fd1c1', '#fff8e7', '#1f5bff'];
@@ -407,6 +421,7 @@
     readyTimer = setTimeout(() => {
       if (!state.ready || state.armId !== armId) return;
       state.ready = false; state.armed = true;
+      localArmedAt = performance.now();
       fbArm(); Sound.go();
       save(); render();
     }, wait);
@@ -415,12 +430,36 @@
     clearTimeout(readyTimer);
     state.ready = false;
     state.armed = false;
-    if (fbOn) FB.ref('buzz').set({ armed: false, armId: state.armId || null }).catch(fbError);
+    if (fbOn) FB.ref('buzz').set({ armed: false, armId: state.armId || null, blocked: state.blocked }).catch(fbError);
+  }
+  // Undo: snapshots of the game before each host action.
+  const history = [];
+  const UNDOABLE = new Set(['reveal', 'revealAll', 'strike', 'clearStrikes', 'control', 'award', 'adjust', 'next', 'prev', 'resetRound', 'reset', 'newGame', 'block']);
+  function undo() {
+    const prev = history.pop();
+    if (!prev) return false;
+    state = JSON.parse(prev);
+    clearTimeout(readyTimer);
+    state.armed = false; state.ready = false;
+    lockBuzzers();
+    builtKey = ''; buildBoard();
+    $$('#board .tile').forEach((t, i) => t.classList.toggle('revealed', !!state.revealed[i]));
+    toast('↶ Undone');
+    return true;
   }
   function exec(c) {
     const q = qAt(state.round);
     if (c.t && c.t.startsWith('lg')) { if (!lgCommand(c)) return; save(); render(); return; }
+    if (c.t === 'undo') { if (undo()) { save(); render(); } return; }
+    if (UNDOABLE.has(c.t)) { history.push(JSON.stringify(state)); if (history.length > 40) history.shift(); }
     switch (c.t) {
+      case 'block': {
+        const t = +c.team;
+        state.blocked[t] = c.v != null ? !!c.v && c.v !== 'false' : !state.blocked[t];
+        if (fbOn) FB.ref('buzz/blocked').set(state.blocked).catch(fbError);
+        toast(state.blocked[t] ? `🚫 ${settings.teamNames[t]} can't buzz` : `✅ ${settings.teamNames[t]} can buzz again`);
+        break;
+      }
       case 'mode':
         state.mode = c.m === 'lightning' && state.lg ? 'lightning' : 'main';
         clearInterval(lgInterval); if (state.lg) state.lg.running = false;
@@ -438,6 +477,11 @@
           state.revealed[i] = true;
           Sound.ding(); flashBulbs(500);
           if (state.bankOpen) { const p = q.a[i].pts * mult(state.round); state.banked[i] = p; state.bank += p; }
+          const all = q.a.every((_, k) => state.revealed[k]);
+          if (all && state.bankOpen && state.control != null && state.strikes[state.control] === 0 && !state.swept) {
+            state.swept = true;
+            setTimeout(() => { toast(`🧹 Clean sweep for ${settings.teamNames[state.control]}! No strikes!`, 3000); Sound.bank(); flashBulbs(2000); }, 700);
+          } else if (i === 0) setTimeout(() => toast('⭐ Top answer!'), 600);
         }
         checkWin();
         break;
@@ -451,6 +495,10 @@
         if (t !== 0 && t !== 1) { showX(1); Sound.strike(); break; }
         state.strikes[t] = Math.min(3, state.strikes[t] + 1);
         showX(state.strikes[t]); Sound.strike();
+        if (state.strikes[t] === 3) {
+          state.blocked[t] = true;
+          if (fbOn) FB.ref('buzz/blocked').set(state.blocked).catch(fbError);
+        }
         if (state.strikes[t] === 3 && state.control === t) {
           const other = 1 - t;
           setTimeout(() => showCard('Steal!', `${settings.teamNames[other]}: one guess to steal ${state.bank} points`), 1500);
@@ -460,7 +508,9 @@
       case 'x1':
         showX(1); Sound.strike(); break;
       case 'clearStrikes':
-        state.strikes = [0, 0]; break;
+        state.strikes = [0, 0]; state.blocked = [false, false];
+        if (fbOn) FB.ref('buzz/blocked').set(state.blocked).catch(fbError);
+        break;
       case 'control': {
         // The round's points move with control (face-off won by the other team, or a steal).
         const t = +c.team;
@@ -480,17 +530,17 @@
         state.scores[+c.team] = Math.max(0, state.scores[+c.team] + (+c.d || 0)); break;
       case 'next':
         if (state.round >= questions.length - 1) return;
-        commitRound(); state.round++; Object.assign(state, freshRound()); arm(); showRoundCard(); break;
+        commitRound(); state.round++; Object.assign(state, freshRound()); lockBuzzers(); showRoundCard(); break;
       case 'prev':
         if (state.round <= 0) return;
-        commitRound(); state.round--; Object.assign(state, freshRound()); arm(); showRoundCard(); break;
+        commitRound(); state.round--; Object.assign(state, freshRound()); lockBuzzers(); showRoundCard(); break;
       case 'resetRound':
-        Object.assign(state, freshRound()); arm(); break;
+        Object.assign(state, freshRound()); lockBuzzers(); break;
       case 'newGame':
       case 'reset':
         clearInterval(lgInterval);
         state = newGame(); shownWinner = null; $('#winOverlay').classList.remove('show');
-        arm(); showCard('New game', 'Scores reset. Good luck!'); break;
+        lockBuzzers(); showCard('New game', 'Scores reset. Good luck!'); break;
       case 'dismissWin':
         state.winner = null; if (state.lg) state.lg.won = state.lg.won ? 'seen' : false;
         $('#winOverlay').classList.remove('show'); shownWinner = null; break;
@@ -510,9 +560,32 @@
     state.control = team; // points from now on go to the team that buzzed in
     Sound.buzz(team);
     showBuzz(team, player);
-    computeLate();
+    computeLate(); computeReaction();
     save(); render();
   }
+  // Reaction time: winner's first press minus the moment the buzzers opened (both server times).
+  let armedAtServer = null, localArmedAt = 0;
+  function computeReaction() {
+    const b = state.buzz;
+    if (!b || b.reaction != null) return;
+    if (fbOn) {
+      const mine = presses.filter(p => p.team === b.team).map(p => p.at);
+      if (!mine.length || armedAtServer == null) return;
+      b.reaction = Math.max(0, Math.min(...mine) - armedAtServer);
+    } else b.reaction = Math.max(0, Math.round(performance.now() - localArmedAt));
+    const key = (b.player || settings.teamNames[b.team]).trim();
+    const f = state.fingers[key] || { name: key, team: b.team, wins: 0, best: null };
+    f.wins++; f.team = b.team;
+    if (f.best == null || b.reaction < f.best) f.best = b.reaction;
+    state.fingers[key] = f;
+    const rt = $('#buzzBanner .rt');
+    if ($('#buzzBanner').classList.contains('show')) rt.textContent = `Reaction time ${(b.reaction / 1000).toFixed(2)}s`;
+    save(); render();
+  }
+  function fingersList() {
+    return Object.values(state.fingers || {}).filter(f => f.best != null).sort((a, b) => a.best - b.best).slice(0, 5);
+  }
+
   function computeLate() {
     if (!state.buzz || state.buzz.lateBy != null) return;
     const first = t => Math.min(...presses.filter(p => p.team === t).map(p => p.at));
@@ -522,6 +595,7 @@
   let localFirstAt = 0;
   const localLock = [0, 0];
   function localBuzz(team) {
+    if (state.blocked[team]) return;
     const t0 = Date.now();
     if (!state.armed && !state.buzz) { localLock[team] = t0 + 2000; return; } // pressed early: locked 2 s
     if (t0 < localLock[team]) { localLock[team] = t0 + 2000; return; }
@@ -529,7 +603,7 @@
       if (!state.armed) return;
       const armId = state.armId;
       FB.ref('presses').push({ team, armId, at: FB.TS }).catch(fbError);
-      FB.ref('buzz').transaction(cur => (cur && cur.armed && cur.armId === armId)
+      FB.ref('buzz').transaction(cur => (cur && cur.armed && cur.armId === armId && !(cur.blocked && cur.blocked[team]))
         ? { armed: false, armId, team, player: 'TV keyboard', at: Date.now() }
         : undefined).catch(fbError);
       return;
@@ -578,15 +652,15 @@
     Sound.intro(); goFullscreen();
     requestAnimationFrame(layAllBulbs);
     if (state.mode === 'main') {
-      if (!state.armed && !state.ready && !state.buzz) arm();
       showRoundCard();
     }
     save(); render();
   });
-  const openRules = () => { const r = $('#rules'); if (!r.querySelector('iframe').src) r.querySelector('iframe').src = 'rules.html?v=9&embed=1'; r.classList.add('show'); };
+  const openRules = () => { const r = $('#rules'); if (!r.querySelector('iframe').src) r.querySelector('iframe').src = 'rules.html?v=10&embed=1'; r.classList.add('show'); };
   $('#rulesBtn').addEventListener('click', e => { e.target.blur(); openRules(); });
   $('#lobbyRules').addEventListener('click', openRules);
   $('#rulesClose').addEventListener('click', () => $('#rules').classList.remove('show'));
+  $('#undoBtn').addEventListener('click', e => { e.target.blur(); exec({ t: 'undo' }); });
   $('#lobbyBtn').addEventListener('click', e => { e.target.blur(); $('#lobby').classList.remove('hidden'); });
   $('#lobbySetup').addEventListener('click', openSetup);
   $('#setupBtn').addEventListener('click', openSetup);
@@ -617,6 +691,22 @@
       const list = teamPlayers(t);
       if (!list.length) box.innerHTML = '<div class="none">Waiting for a buzzer to join</div>';
       list.forEach(p => { const d = document.createElement('div'); d.className = 'pl'; d.textContent = p.name || 'Buzzer'; box.appendChild(d); });
+    });
+    renderFingers($('#lobbyFingers'));
+  }
+  function renderFingers(box) {
+    if (!box) return;
+    const list = fingersList();
+    box.classList.toggle('hidden', !list.length);
+    const ol = box.querySelector('ol');
+    ol.innerHTML = '';
+    list.forEach(f => {
+      const li = document.createElement('li');
+      li.style.setProperty('--c', `var(--team${f.team})`);
+      li.innerHTML = '<span class="nm"></span><span class="tm"></span>';
+      li.querySelector('.nm').textContent = f.name;
+      li.querySelector('.tm').textContent = `${(f.best / 1000).toFixed(2)}s, ${f.wins} buzz-in${f.wins > 1 ? 's' : ''}`;
+      ol.appendChild(li);
     });
   }
 
@@ -733,11 +823,12 @@
     FB.onConnected(on => setConn(on ? 'on' : '', (on ? 'Live, room ' : 'Reconnecting… room ') + settings.room));
     FB.ref('buzz').on('value', s => {
       const b = s.val();
+      if (b && b.armed && b.armId === state.armId && typeof b.armedAt === 'number') { armedAtServer = b.armedAt; computeReaction(); }
       if (b && b.armed === false && b.team != null && b.armId === state.armId) winnerDecided(+b.team, b.player);
     }, fbError);
     FB.ref('presses').on('child_added', s => {
       const p = s.val();
-      if (p && p.armId === state.armId && typeof p.at === 'number') { presses.push(p); computeLate(); }
+      if (p && p.armId === state.armId && typeof p.at === 'number') { presses.push(p); computeLate(); computeReaction(); }
     });
     let known = 0;
     FB.ref('players').on('value', s => {
@@ -772,6 +863,9 @@
       bank: state.bank,
       armed: state.armed,
       ready: !!state.ready,
+      blocked: state.blocked,
+      canUndo: history.length > 0,
+      fingers: fingersList(),
       control: state.control,
       buzz: state.buzz,
       winner: state.winner,
@@ -791,11 +885,12 @@
   function fbReady() {
     if (!fbOn) return;
     FB.ref('presses').remove();
-    FB.ref('buzz').set({ armed: false, ready: true, armId: state.armId, round: state.round }).catch(fbError);
+    FB.ref('buzz').set({ armed: false, ready: true, armId: state.armId, round: state.round, blocked: state.blocked }).catch(fbError);
   }
   function fbArm() {
     if (!fbOn) return;
-    FB.ref('buzz').set({ armed: true, armId: state.armId, round: state.round }).catch(fbError);
+    armedAtServer = null;
+    FB.ref('buzz').set({ armed: true, armId: state.armId, round: state.round, blocked: state.blocked, armedAt: FB.TS }).catch(fbError);
   }
 
   // ---------------------------------------------------------------- go

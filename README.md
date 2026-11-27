@@ -49,6 +49,8 @@ In [Google Cloud Console → APIs & Services → Credentials](https://console.cl
 |---|---|
 | Reveal an answer | Click its tile (click again to hide it) |
 | Start a face-off | **⚡ Start face-off** (automatic at the start of each round). Buzzers show *Get ready* for a random 1–3 seconds, then open. Pressing early locks that buzzer for 2 seconds, and every extra press restarts the lock, so mashing never wins. |
+| Block a team's buzzer | **🚫 Block** (phone or TV bar). Happens automatically on a team's third X so they can't buzz during the steal. Clears at the next round. |
+| Fix a mis-tap | **↶ Undo** (phone or TV bar) takes back the last action, one at a time |
 | Show the family the rules | **📜 Rules** on the TV (lobby or control bar), or print `rules.html` |
 | Wrong face-off answer | **✕ Face-off Miss** (one big X, not counted as a strike) |
 | Wrong answer | **✕ Strike Team** (each team has its own 3 X's; the third X on the team in control pops up a Steal card) |
