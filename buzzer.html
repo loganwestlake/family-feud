@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="firebase-config.js?v=7" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<script src="firebase-config.js?v=8" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 <style>
   :root { --gold:#f7c548; --team0:#ff5a4e; --team1:#1fd1c1; --red:#ff2d3f; --c:#1f5bff; --ivory:#fff8e7;
     --display:'Bungee', Impact, sans-serif; --text:'Barlow Condensed', 'Arial Narrow', sans-serif; }
@@ -51,18 +51,37 @@
     border-color: #fff; animation: throb .8s ease-in-out infinite; }
   #big.won { background: radial-gradient(circle, #fff4b0, var(--gold) 55%, #8a5a00); color: #2a1a00; border-color: #fff; animation: none; box-shadow: 0 0 80px var(--gold); }
   #big.lost { background: radial-gradient(circle, #5a1020, #200008); border-color: var(--red); color: #ffb3b3; }
+  #big.ready { background: radial-gradient(circle at 35% 30%, #fff5 0, transparent 35%), radial-gradient(circle, #b8741a, #3a2200);
+    border-color: #ffb347; color: #fff3d6; }
+  #big.locked { background: repeating-linear-gradient(135deg, #5a1020 0 22px, #3a0614 22px 44px); border-color: var(--red); color: #fff; }
   #big.press { transform: scale(.94) translateY(1vh); }
   #big.nope { animation: shake .3s; }
   @keyframes throb { 50% { box-shadow: 0 0 60px var(--c), 0 2vh 0 #0008; transform: scale(1.03); } }
   @keyframes shake { 25% { transform: translateX(-14px); } 75% { transform: translateX(14px); } }
   #sub { font-size: 26px; letter-spacing: .1em; text-align: center; min-height: 36px; }
   .hint { font-size: 15px; opacity: .6; letter-spacing: .05em; }
+  /* legend under the button: what each color means */
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
+  .legend span { display: flex; align-items: center; gap: 8px; font-size: 18px; padding: 6px 12px; border-radius: 99px; background: rgba(5,10,38,.6); }
+  .legend i { width: 18px; height: 18px; border-radius: 50%; display: inline-block; }
+  /* join screen: form + step-by-step guide side by side */
+  .joinGrid { display: grid; grid-template-columns: minmax(300px, 440px) minmax(280px, 440px); gap: 22px; align-items: start; }
+  .guide { background: rgba(5,10,38,.6); border-radius: 18px; padding: 18px 22px; }
+  .guide h2 { margin: 0 0 10px; font-family: var(--display); font-weight: 400; font-size: 22px; color: var(--gold); }
+  .guide ol { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+  .guide li { counter-increment: step; display: grid; grid-template-columns: 36px 1fr; gap: 10px; margin: 0 0 12px; font-size: 19px; line-height: 1.3; }
+  .guide li::before { content: counter(step); font-family: var(--display); width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--gold); color: #2a1a00; font-size: 17px; }
+  .guide b { color: #fff1b8; }
+  .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -1px; margin: 0 2px; }
+  @media (max-width: 760px) { .joinGrid { grid-template-columns: 1fr; } body { overflow: auto; } .wrap { height: auto; min-height: 100%; } }
 </style>
 </head>
 <body>
 
 <div id="join" class="wrap">
   <div class="logo">FACE-OFF BUZZER</div>
+  <div class="joinGrid">
   <div class="card">
     <div>Type the room code and PIN shown on the TV.</div>
     <label>ROOM</label><input id="roomIn" maxlength="4" autocomplete="off" placeholder="ABCD">
@@ -72,6 +91,18 @@
     <div class="err" id="joinErr"></div>
     <details><summary>Advanced: use a different Firebase project</summary>
       <textarea id="cfgIn" placeholder="Paste a firebaseConfig here only if this website wasn't published with one."></textarea></details>
+  </div>
+  <div class="guide">
+    <h2>How to buzz in</h2>
+    <ol>
+      <li><span>Type the <b>room code</b> and <b>PIN</b> from the TV, add your name, and tap <b>Join game</b>.</span></li>
+      <li><span>Pick your <b>team</b>. Your name shows up on the TV.</span></li>
+      <li><span>Hands off the keyboard while the button is <b>grey</b> <span class="dot" style="background:#3a4590"></span> or <b>orange</b> <span class="dot" style="background:#b8741a"></span>.</span></li>
+      <li><span>When it turns your team color and says <b>BUZZ!</b>, press <b>any key once</b>.</span></li>
+      <li><span>Press too early and your buzzer <b>locks for 2 seconds</b> <span class="dot" style="background:#ff2d3f"></span>. Mashing keeps it locked. One clean press wins.</span></li>
+      <li><span><b>Gold</b> means you were first: shout your answer! <b>Red</b> means the other team got there first.</span></li>
+    </ol>
+  </div>
   </div>
 </div>
 
@@ -91,10 +122,15 @@
   <div id="q"></div>
   <div id="big">WAIT…</div>
   <div id="sub"></div>
-  <div class="hint">Press ANY key (or click the button) to buzz in</div>
+  <div class="legend">
+    <span><i style="background:#3a4590"></i>Wait</span>
+    <span><i style="background:#b8741a"></i>Get ready, hands off</span>
+    <span><i style="background:var(--c)"></i>BUZZ! Press one key</span>
+    <span><i style="background:var(--red)"></i>Too early: locked 2s</span>
+  </div>
 </div>
 
-<script src="common.js?v=7"></script>
+<script src="common.js?v=8"></script>
 <script>
 (() => {
   const F = window.FFO, { FB, store } = F;
@@ -103,6 +139,17 @@
   const me = store.get('buzzer', {});
   me.id = me.id || F.randomId();
   let st = null, buzz = null, myTeam = null, joined = false, flash = null, lostAt = 0;
+  // Pressing before BUZZ! locks this buzzer. Every early press restarts the lock, so mashing never pays.
+  const LOCK_MS = 2000;
+  let lockedUntil = 0, lockTimer = null;
+  const isLocked = () => Date.now() < lockedUntil;
+  function lockOut() {
+    lockedUntil = Date.now() + LOCK_MS;
+    tone(120, .18, 'sawtooth', .2);
+    clearInterval(lockTimer);
+    lockTimer = setInterval(() => { render(); if (!isLocked()) clearInterval(lockTimer); }, 100);
+    render();
+  }
 
   // ---- sound
   let ctx;
@@ -197,7 +244,13 @@
       FB.ref('presses').push({ team: myTeam, armId: buzz.armId, by: me.id, at: FB.TS });
       return;
     }
-    if (!buzz || !buzz.armed) { big.classList.remove('nope'); void big.offsetWidth; big.classList.add('nope'); flash = 'Not yet!'; render(); setTimeout(() => { flash = null; render(); }, 900); return; }
+    if (buzz && !buzz.armed && buzz.team != null) return; // result is showing: extra presses don't matter
+    if (!buzz || !buzz.armed || isLocked()) {
+      // Too early (or still locked from pressing early): lock / extend the lock.
+      big.classList.remove('nope'); void big.offsetWidth; big.classList.add('nope');
+      lockOut();
+      return;
+    }
     const armId = buzz.armId;
     tone(myTeam ? 740 : 554, .1);
     FB.ref('presses').push({ team: myTeam, armId, by: me.id, at: FB.TS });
@@ -223,14 +276,20 @@
     $('#myName').textContent = me.name ? '· ' + me.name : '';
     $('#q').textContent = st && st.question ? st.question : '';
     const big = $('#big'), sub = $('#sub');
-    big.className = '';
-    if (buzz && buzz.armed) { big.classList.add('armed'); big.textContent = 'BUZZ!'; sub.textContent = flash || 'Buzzers are live. GO!'; }
+    const keepNope = big.classList.contains('nope');
+    big.className = keepNope ? 'nope' : '';
+    if (isLocked() && !(buzz && buzz.team != null && !buzz.armed)) {
+      big.classList.add('locked'); big.textContent = 'TOO EARLY!';
+      sub.textContent = `Locked for ${((lockedUntil - Date.now()) / 1000).toFixed(1)}s. Hands off until it says BUZZ!`;
+    }
+    else if (buzz && buzz.armed) { big.classList.add('armed'); big.textContent = 'BUZZ!'; sub.textContent = 'Press one key now!'; }
+    else if (buzz && buzz.ready) { big.classList.add('ready'); big.textContent = 'GET READY…'; sub.textContent = "Hands off! Pressing now locks you out"; }
     else if (buzz && buzz.team != null) {
       const late = st && st.buzz && st.buzz.lateBy != null ? ` by ${(st.buzz.lateBy / 1000).toFixed(3)}s` : '';
       if (buzz.by === me.id) { big.classList.add('won'); big.textContent = 'YOU WERE FIRST!'; sub.textContent = `Answer the question!${late ? ' Won' + late : ''}`; }
       else if (buzz.team === myTeam) { big.classList.add('won'); big.textContent = 'YOUR TEAM GOT IT!'; sub.textContent = buzz.player ? buzz.player + ' buzzed first' : ''; }
       else { big.classList.add('lost'); big.textContent = 'TOO SLOW!'; sub.textContent = `${names[buzz.team]} buzzed first${late}`; }
-    } else { big.textContent = 'WAIT…'; sub.textContent = flash || 'Waiting for the host to arm the buzzers'; }
+    } else { big.textContent = 'WAIT…'; sub.textContent = 'Waiting for the host to start the face-off'; }
   }
 })();
 </script>

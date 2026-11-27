@@ -54,7 +54,7 @@
     if (settings.shuffle) for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
     return o;
   };
-  const freshRound = () => ({ revealed: [], banked: [], strikes: [0, 0], bank: 0, bankOpen: true, armed: false, armId: null, buzz: null, control: null });
+  const freshRound = () => ({ revealed: [], banked: [], strikes: [0, 0], bank: 0, bankOpen: true, armed: false, ready: false, armId: null, buzz: null, control: null });
   const newGame = () => Object.assign({ scores: [0, 0], round: 0, winner: null, order: makeOrder(), mode: 'main', lg: null }, freshRound());
   let state = Object.assign(newGame(), store.get('state', {}));
   if (!Array.isArray(state.order) || state.order.length !== questions.length) state.order = makeOrder();
@@ -89,6 +89,7 @@
       win() { [392, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, 'square', 0.15, i * 0.14)); tone(1047, 1.4, 'triangle', 0.3, 1.0); },
       intro() { [262, 330, 392, 523, 392, 523, 659, 784].forEach((f, i) => tone(f, 0.22, 'triangle', 0.25, i * 0.11)); },
       join() { tone(880, 0.15, 'sine', 0.2); tone(1320, 0.25, 'sine', 0.2, 0.1); },
+      go() { tone(988, 0.12, 'square', 0.18); tone(1319, 0.2, 'square', 0.18, 0.1); },
       tick() { tone(1200, 0.06, 'square', 0.12); },
       timeUp() { tone(196, 1.1, 'sawtooth', 0.3); tone(201, 1.1, 'square', 0.18); },
       dup() { tone(160, 0.22, 'square', 0.3); tone(160, 0.3, 'square', 0.3, 0.28); },
@@ -202,8 +203,9 @@
     });
 
     const bs = $('#buzzStatus');
-    bs.classList.toggle('armed', state.armed);
-    if (state.armed) bs.textContent = '⚡ Buzzers armed. Buzz in!';
+    bs.classList.toggle('armed', state.armed || state.ready);
+    if (state.ready) bs.textContent = 'Get ready… hands off!';
+    else if (state.armed) bs.textContent = '⚡ BUZZ! Buzz in now!';
     else if (state.buzz) {
       const who = state.buzz.player ? ` (${state.buzz.player})` : '';
       const late = state.buzz.lateBy != null ? `. ${settings.teamNames[1 - state.buzz.team]} was ${(state.buzz.lateBy / 1000).toFixed(3)}s late` : '';
@@ -392,14 +394,26 @@
   }
 
   // ---------------------------------------------------------------- game commands
+  let readyTimer = null;
   function arm() {
-    state.armed = true;
+    clearTimeout(readyTimer);
+    state.armed = false;
+    state.ready = true;
     state.buzz = null;
     state.armId = F.randomId();
     presses = [];
-    fbArm();
+    fbReady();
+    const armId = state.armId, wait = 1200 + Math.random() * 1600;
+    readyTimer = setTimeout(() => {
+      if (!state.ready || state.armId !== armId) return;
+      state.ready = false; state.armed = true;
+      fbArm(); Sound.go();
+      save(); render();
+    }, wait);
   }
   function lockBuzzers() {
+    clearTimeout(readyTimer);
+    state.ready = false;
     state.armed = false;
     if (fbOn) FB.ref('buzz').set({ armed: false, armId: state.armId || null }).catch(fbError);
   }
@@ -451,14 +465,14 @@
         // The round's points move with control (face-off won by the other team, or a steal).
         const t = +c.team;
         if (state.control !== t && state.bank > 0) { Sound.bank(); flashBulbs(900); }
-        state.control = t; if (state.armed) lockBuzzers();
+        state.control = t; if (state.armed || state.ready) lockBuzzers();
         checkWin();
         break;
       }
       case 'award': {
         // Older remotes: give the round to this team right now.
         state.control = +c.team; commitRound();
-        if (state.armed) lockBuzzers();
+        if (state.armed || state.ready) lockBuzzers();
         Sound.bank(); flashBulbs(1200); checkWin();
         break;
       }
@@ -506,7 +520,11 @@
     if (isFinite(w) && isFinite(o)) { state.buzz.lateBy = Math.max(0, o - w); save(); render(); }
   }
   let localFirstAt = 0;
+  const localLock = [0, 0];
   function localBuzz(team) {
+    const t0 = Date.now();
+    if (!state.armed && !state.buzz) { localLock[team] = t0 + 2000; return; } // pressed early: locked 2 s
+    if (t0 < localLock[team]) { localLock[team] = t0 + 2000; return; }
     if (fbOn) {
       if (!state.armed) return;
       const armId = state.armId;
@@ -560,11 +578,15 @@
     Sound.intro(); goFullscreen();
     requestAnimationFrame(layAllBulbs);
     if (state.mode === 'main') {
-      if (!state.armed && !state.buzz) arm();
+      if (!state.armed && !state.ready && !state.buzz) arm();
       showRoundCard();
     }
     save(); render();
   });
+  const openRules = () => { const r = $('#rules'); if (!r.querySelector('iframe').src) r.querySelector('iframe').src = 'rules.html?v=8&embed=1'; r.classList.add('show'); };
+  $('#rulesBtn').addEventListener('click', e => { e.target.blur(); openRules(); });
+  $('#lobbyRules').addEventListener('click', openRules);
+  $('#rulesClose').addEventListener('click', () => $('#rules').classList.remove('show'));
   $('#lobbyBtn').addEventListener('click', e => { e.target.blur(); $('#lobby').classList.remove('hidden'); });
   $('#lobbySetup').addEventListener('click', openSetup);
   $('#setupBtn').addEventListener('click', openSetup);
@@ -729,7 +751,7 @@
       snap.ref.remove();
       if (c && c.t && Date.now() - (c.ts || 0) < 60000) exec(c);
     });
-    if (state.armed) arm(); else lockBuzzers();
+    if (state.armed || state.ready) arm(); else lockBuzzers();
     save(); publish();
   }
   function publish() {
@@ -749,6 +771,7 @@
       strikes: state.strikes,
       bank: state.bank,
       armed: state.armed,
+      ready: !!state.ready,
       control: state.control,
       buzz: state.buzz,
       winner: state.winner,
@@ -765,9 +788,13 @@
     snapshot.updated = FB.TS;
     FB.ref('state').set(snapshot).catch(fbError);
   }
-  function fbArm() {
+  function fbReady() {
     if (!fbOn) return;
     FB.ref('presses').remove();
+    FB.ref('buzz').set({ armed: false, ready: true, armId: state.armId, round: state.round }).catch(fbError);
+  }
+  function fbArm() {
+    if (!fbOn) return;
     FB.ref('buzz').set({ armed: true, armId: state.armId, round: state.round }).catch(fbError);
   }
 

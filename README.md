@@ -48,7 +48,8 @@ In [Google Cloud Console → APIs & Services → Credentials](https://console.cl
 | Action | How |
 |---|---|
 | Reveal an answer | Click its tile (click again to hide it) |
-| Next face-off / buzz again | **⚡ Arm Buzzers** (automatic at the start of each round) |
+| Start a face-off | **⚡ Start face-off** (automatic at the start of each round). Buzzers show *Get ready* for a random 1–3 seconds, then open. Pressing early locks that buzzer for 2 seconds, and every extra press restarts the lock, so mashing never wins. |
+| Show the family the rules | **📜 Rules** on the TV (lobby or control bar), or print `rules.html` |
 | Wrong face-off answer | **✕ Face-off Miss** (one big X, not counted as a strike) |
 | Wrong answer | **✕ Strike Team** (each team has its own 3 X's; the third X on the team in control pops up a Steal card) |
 | Start over | **↺ Reset game** (TV bar or phone): scores to 0, round 1, questions reshuffled |

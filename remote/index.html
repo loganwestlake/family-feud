@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="../firebase-config.js?v=7" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<script src="../firebase-config.js?v=8" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 <style>
   :root { --night:#0a1240; --night-2:#141f6b; --ink:#050a26; --card:#101c62; --line:#26388f; --gold:#f7c548; --gold-lt:#fff1b8;
     --ivory:#fff8e7; --muted:#a9b4ee; --team0:#ff5a4e; --team1:#1fd1c1; --red:#ff2d3f; --green:#2ee86b;
@@ -53,7 +53,9 @@
   #joinErr { color: #ffb3b3; min-height: 24px; margin-top: 12px; }
 
   /* buzz card: the most important thing on the phone */
-  #buzz { margin-top: 12px; border-radius: 20px; padding: 18px 14px; text-align: center; background: var(--card); box-shadow: inset 0 0 0 2px var(--line); }
+  /* Fixed height so the buttons below never jump while the host is tapping. */
+  #buzz { margin-top: 12px; border-radius: 20px; padding: 14px; text-align: center; background: var(--card); box-shadow: inset 0 0 0 2px var(--line);
+    height: 150px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
   #buzz .big { font-family: var(--display); font-size: 30px; line-height: 1.1; }
   #buzz .small { font-size: 18px; margin-top: 6px; color: var(--muted); }
   #buzz.armed { box-shadow: inset 0 0 0 3px var(--gold); animation: pulse 1s infinite; }
@@ -127,7 +129,7 @@
   <!-- ===== main game ===== -->
   <div id="mainView">
     <div id="buzz"><div class="big">—</div><div class="small"></div></div>
-    <div class="row"><button class="gold" data-cmd="arm">⚡ Arm buzzers</button><button class="bad" data-cmd="x1">✕ Face-off miss</button></div>
+    <div class="row"><button class="gold" data-cmd="arm">⚡ Start face-off</button><button class="bad" data-cmd="x1">✕ Face-off miss</button></div>
 
     <div class="card">
       <div class="meta" id="roundMeta"></div>
@@ -199,7 +201,7 @@
   <button class="ghost" id="leave" style="margin-top:12px">Leave this game</button>
 </section>
 
-<script src="../common.js?v=7"></script>
+<script src="../common.js?v=8"></script>
 <script>
 (() => {
   const F = window.FFO, { FB, store } = F;
@@ -295,7 +297,8 @@
     const names = st.teamNames || ['Team One', 'Team Two'];
     const bc = $('#buzz');
     bc.className = '';
-    if (st.armed) { bc.classList.add('armed'); bc.querySelector('.big').textContent = 'Buzzers armed'; bc.querySelector('.small').textContent = 'Waiting for someone to buzz in'; }
+    if (st.ready) { bc.classList.add('armed'); bc.querySelector('.big').textContent = 'Get ready…'; bc.querySelector('.small').textContent = 'Buzzers open in a moment. Early presses get locked out'; }
+    else if (st.armed) { bc.classList.add('armed'); bc.querySelector('.big').textContent = 'Buzzers open'; bc.querySelector('.small').textContent = 'Waiting for someone to buzz in'; }
     else if (st.buzz && st.buzz.team != null) {
       bc.classList.add('t' + st.buzz.team);
       bc.querySelector('.big').textContent = `${names[st.buzz.team]} buzzed first`;

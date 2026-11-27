@@ -251,6 +251,11 @@ body.flash .bulbs .lit { animation-duration: .3s; }
 .confetti { position: fixed; top: -3vh; width: 1.2vh; height: 2vh; animation: fall linear forwards; }
 @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
+#rules { z-index: 40; pointer-events: auto; background: rgba(2,5,20,.92); flex-direction: column; padding: 2vh 2vw; gap: 1.2vh; }
+#rules iframe { flex: 1; width: 100%; border: 0; border-radius: 2vh; }
+#rules button { font-family: var(--display); font-size: 2.6vh; padding: 1vh 3vw; border-radius: 1.2vh; border: 0; cursor: pointer;
+  background: linear-gradient(#ffe07a, #c48d1c); color: #2a1a00; }
+
 /* ---------- Lobby ---------- */
 #lobby { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.6vh; }
 #lobby.hidden { display: none; }

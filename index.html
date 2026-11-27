@@ -6,11 +6,11 @@
 <title>Family Face-Off</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="firebase-config.js?v=7" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<script src="firebase-config.js?v=8" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 </head>
 <body class="mode-main">
 <div class="stage" aria-hidden="true"><div class="floor"></div></div>
@@ -62,7 +62,7 @@
   </section>
 
   <footer id="controls">
-    <button data-cmd="arm" class="main-only" title="Clear the last buzz and let both teams buzz again">⚡ Arm buzzers</button>
+    <button data-cmd="arm" class="main-only" title="Get ready, then the buzzers open at a random moment">⚡ Start face-off</button>
     <button data-cmd="x1" class="bad main-only" title="Wrong face-off answer (big X, not counted)">✕ Face-off miss</button>
     <button data-cmd="strike" data-team="0" class="bad t0 main-only">✕ Strike <span class="tn0"></span></button>
     <button data-cmd="strike" data-team="1" class="bad t1 main-only">✕ Strike <span class="tn1"></span></button>
@@ -86,6 +86,7 @@
     <button data-cmd="mode" data-m="main" class="gold lg-only">Back to main game</button>
 
     <span class="sep"></span>
+    <button id="rulesBtn">📜 Rules</button>
     <button id="resetBtn" class="bad">↺ Reset game</button>
     <button id="lobbyBtn">👥 Lobby</button>
     <button id="fsBtn">⛶ Fullscreen</button>
@@ -98,6 +99,7 @@
 <div id="strikeOverlay" class="overlay"></div>
 <div id="buzzBanner" class="overlay"><div class="who"></div><div class="sub">Buzzed in first!</div><div class="player"></div></div>
 <div id="roundCard" class="overlay"><div class="r"></div><div class="m"></div></div>
+<div id="rules" class="overlay"><iframe title="Rules"></iframe><button id="rulesClose">Close rules</button></div>
 <div id="winOverlay" class="overlay"><div class="sub">And the winner is</div><div class="who"></div><div class="sub" style="font-size:2.2vh;margin-top:3vh;color:#a9b4ee">Click to close</div></div>
 
 <div id="lobby">
@@ -128,6 +130,7 @@
   </div>
   <div class="row">
     <button class="btn" id="startBtn">Start the show</button>
+    <button class="btn alt" id="lobbyRules">📜 Rules</button>
     <button class="btn alt" id="lobbySetup">⚙ Setup</button>
   </div>
 </div>
@@ -188,8 +191,8 @@
   </section>
 </dialog>
 
-<script src="questions.js?v=7"></script>
-<script src="common.js?v=7"></script>
-<script src="board.js?v=7"></script>
+<script src="questions.js?v=8"></script>
+<script src="common.js?v=8"></script>
+<script src="board.js?v=8"></script>
 </body>
 </html>

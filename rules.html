@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Family Face-Off Rules</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --night:#0a1240; --night-2:#141f6b; --ink:#050a26; --gold:#f7c548; --gold-lt:#fff1b8; --ivory:#fff8e7; --muted:#b8c1f2;
+    --team0:#ff5a4e; --team1:#1fd1c1; --red:#ff2d3f; --display:'Bungee', Impact, sans-serif; --text:'Barlow Condensed', 'Arial Narrow', sans-serif; }
+  * { box-sizing: border-box; }
+  html { background: var(--ink); }
+  body { margin: 0; color: var(--ivory); font-family: var(--text); font-size: clamp(19px, 1.9vw, 30px); line-height: 1.35;
+    background: radial-gradient(120% 60% at 50% 0%, var(--night-2), var(--night) 50%, var(--ink)); padding: 3vh 4vw 6vh; }
+  .wrap { max-width: 1500px; margin: 0 auto; }
+  h1 { font-family: var(--display); font-weight: 400; color: var(--gold); font-size: clamp(34px, 4.6vw, 72px); margin: 0 0 .2em; text-align: center;
+    text-shadow: 0 .06em 0 #9a6a12, 0 .12em 0 #6b4708; }
+  .lede { text-align: center; color: var(--muted); margin: 0 0 1.6em; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 3vw; }
+  h2 { font-family: var(--display); font-weight: 400; color: var(--gold-lt); font-size: 1.3em; margin: 0 0 .6em; }
+  ol { list-style: none; margin: 0; padding: 0; counter-reset: n; }
+  li { counter-increment: n; display: grid; grid-template-columns: 1.7em 1fr; gap: .6em; margin: 0 0 .75em; }
+  li::before { content: counter(n); font-family: var(--display); font-size: .8em; width: 1.9em; height: 1.9em; border-radius: 50%; display: grid; place-items: center;
+    background: var(--gold); color: #2a1a00; }
+  b { color: var(--gold-lt); }
+  .panel { background: rgba(5,10,38,.6); border-radius: 22px; padding: 1.1em 1.3em; }
+  .house { margin-top: 1.4em; }
+  .house ul { margin: 0; padding-left: 1.1em; }
+  .house li { display: list-item; margin: 0 0 .35em; }
+  .house li::before { display: none; }
+
+  /* buzzer screen guide: real-looking mini buzzers */
+  .states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1em; margin-top: .4em; }
+  .state { text-align: center; }
+  .btn { width: 100%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-size: .78em; line-height: 1.05;
+    border: .25em solid #3a4590; background: radial-gradient(circle, #2a3366, #0b1040); margin-bottom: .35em; padding: 8%; }
+  .btn.ready { background: radial-gradient(circle, #b8741a, #3a2200); border-color: #ffb347; color: #fff3d6; }
+  .btn.go { background: radial-gradient(circle, var(--team1), #001a18 140%); border-color: #fff; }
+  .btn.locked { background: repeating-linear-gradient(135deg, #5a1020 0 10px, #3a0614 10px 20px); border-color: var(--red); }
+  .btn.won { background: radial-gradient(circle, #fff4b0, var(--gold) 55%, #8a5a00); color: #2a1a00; border-color: #fff; }
+  .btn.lost { background: radial-gradient(circle, #5a1020, #200008); border-color: var(--red); color: #ffb3b3; }
+  .state small { display: block; font-size: .78em; color: var(--muted); line-height: 1.2; }
+  .state strong { display: block; font-size: .9em; }
+
+  .back { display: inline-block; margin-bottom: 1em; color: var(--gold); font-weight: 700; text-decoration: none; }
+  .embed .back, .embed .print { display: none; }
+  .print { margin-top: 2em; text-align: center; }
+  .print button { font: 700 22px var(--text); padding: 10px 22px; border-radius: 12px; border: 0; background: linear-gradient(#ffe07a, #c48d1c); color: #2a1a00; cursor: pointer; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  @media print {
+    body { background: #fff; color: #000; font-size: 13pt; padding: 0; }
+    h1, h2, b { color: #000; text-shadow: none; }
+    .panel { background: none; border: 1px solid #999; }
+    .lede, .state small { color: #333; }
+    li::before { background: #000; color: #fff; }
+    .back, .print { display: none; }
+    .btn { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← Back to the game</a>
+  <h1>How to play</h1>
+  <p class="lede">Two teams, one survey, and a race to buzz in first. The host's call is final.</p>
+
+  <div class="cols">
+    <section class="panel">
+      <h2>The rules</h2>
+      <ol>
+        <li><span><b>Face-off.</b> One player from each team goes to their team's buzzer laptop. The host reads a survey question.</span></li>
+        <li><span><b>Wait for BUZZ!</b> The buzzers show <b>Get ready</b> for a moment, then turn to <b>BUZZ!</b> at a random time. Press one key when you see it.</span></li>
+        <li><span><b>No early presses.</b> Pressing before BUZZ! locks your buzzer for 2 seconds, and every extra press restarts the lock. Mashing the space bar only locks you out.</span></li>
+        <li><span><b>First to buzz answers.</b> If the other player gives a higher answer, their team takes the board instead.</span></li>
+        <li><span><b>Play the board.</b> The team in control takes turns guessing. Every answer on the board adds its points to that team's score right away.</span></li>
+        <li><span><b>Three strikes.</b> A wrong guess earns an X. After three X's, the other team huddles and gets <b>one guess to steal</b> every point from the round.</span></li>
+        <li><span><b>Bigger rounds.</b> Round 4 is worth double points, and from round 5 on it's triple.</span></li>
+        <li><span><b>Winning.</b> The first team to <b>300 points</b> wins.</span></li>
+        <li><span><b>Lightning Round.</b> Two players from the same team answer five quick questions against the clock: 20 seconds for the first, 25 for the second, who can't repeat the first player's answers. Together they need 200 points.</span></li>
+      </ol>
+      <div class="house">
+        <h2>House rules</h2>
+        <ul>
+          <li>Only the player at the buzzer answers during the face-off.</li>
+          <li>No shouting answers when it's the other team's turn.</li>
+          <li>Hands off the keyboard until the screen says BUZZ!</li>
+          <li>The host decides close calls. No arguing with the host.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Using the buzzer laptop</h2>
+      <ol>
+        <li><span>Open the buzzer address shown on the TV (it ends in <b>/buzzer.html</b>).</span></li>
+        <li><span>Type the <b>room code</b> and <b>PIN</b> from the TV, add your name, and tap <b>Join game</b>.</span></li>
+        <li><span>Pick your <b>team</b>. Your name appears on the TV.</span></li>
+        <li><span>Watch the big button. Its color tells you what to do:</span></li>
+      </ol>
+      <div class="states">
+        <div class="state"><div class="btn">WAIT…</div><strong>Grey</strong><small>Hands off. The host hasn't started yet.</small></div>
+        <div class="state"><div class="btn ready">GET READY…</div><strong>Orange</strong><small>Still hands off. It opens any second.</small></div>
+        <div class="state"><div class="btn go">BUZZ!</div><strong>Team color</strong><small>Press any key once!</small></div>
+        <div class="state"><div class="btn locked">TOO EARLY!</div><strong>Striped red</strong><small>You pressed early. Locked for 2 seconds.</small></div>
+        <div class="state"><div class="btn won">YOU WERE FIRST!</div><strong>Gold</strong><small>Shout your answer!</small></div>
+        <div class="state"><div class="btn lost">TOO SLOW!</div><strong>Dark red</strong><small>The other team got there first.</small></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="print"><button onclick="window.print()">Print these rules</button></div>
+</div>
+<script>if (/embed=1/.test(location.search)) document.body.classList.add('embed');</script>
+</body>
+</html>
