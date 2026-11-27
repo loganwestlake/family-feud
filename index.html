@@ -6,20 +6,20 @@
 <title>Family Face-Off</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="firebase-config.js?v=6" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<script src="firebase-config.js?v=7" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 </head>
 <body class="mode-main">
-<div class="stage" aria-hidden="true"><div class="beam l"></div><div class="beam r"></div><div class="floor"></div><canvas id="sparkles"></canvas></div>
+<div class="stage" aria-hidden="true"><div class="floor"></div></div>
 
 <div id="app">
-  <div class="logo"><div class="small">FAMILY</div><div class="big">FACE-OFF</div></div>
-
   <div class="topline">
+    <div class="logo game-logo"><div class="big">FACE-OFF</div></div>
     <div id="roundInfo" class="pill">Round 1</div>
+    <div class="spacer"></div>
     <div class="bank"><div class="label">BANK</div><div id="bank" class="num">0</div></div>
     <div id="multInfo" class="pill">Single points</div>
   </div>
@@ -28,6 +28,7 @@
     <section class="team" id="team0">
       <div class="name"></div>
       <div class="score">0</div>
+      <div class="xs"><span>✕</span><span>✕</span><span>✕</span></div>
       <div class="tag">▶ In control</div>
       <div class="keys"></div>
     </section>
@@ -35,15 +36,13 @@
     <section class="center">
       <div id="question" class="question"><span></span></div>
       <div class="frame"><div class="bulbs"></div><div class="board" id="board"></div></div>
-      <div class="status">
-        <div class="strikes" id="strikes"><span>X</span><span>X</span><span>X</span></div>
-        <div id="buzzStatus"></div>
-      </div>
+      <div class="status"><div id="buzzStatus"></div></div>
     </section>
 
     <section class="team" id="team1">
       <div class="name"></div>
       <div class="score">0</div>
+      <div class="xs"><span>✕</span><span>✕</span><span>✕</span></div>
       <div class="tag">In control ◀</div>
       <div class="keys"></div>
     </section>
@@ -64,14 +63,13 @@
 
   <footer id="controls">
     <button data-cmd="arm" class="main-only" title="Clear the last buzz and let both teams buzz again">⚡ Arm buzzers</button>
-    <button data-cmd="x1" class="bad main-only" title="Wrong answer during the face-off (doesn't count as a strike)">✕ Face-off miss</button>
-    <button data-cmd="strike" class="bad main-only" title="Add a strike to the team in control">✕ Strike</button>
-    <button data-cmd="clearStrikes" class="main-only">Clear strikes</button>
+    <button data-cmd="x1" class="bad main-only" title="Wrong face-off answer (big X, not counted)">✕ Face-off miss</button>
+    <button data-cmd="strike" data-team="0" class="bad t0 main-only">✕ Strike <span class="tn0"></span></button>
+    <button data-cmd="strike" data-team="1" class="bad t1 main-only">✕ Strike <span class="tn1"></span></button>
+    <button data-cmd="clearStrikes" class="main-only">Clear X's</button>
     <span class="sep main-only"></span>
-    <button data-cmd="control" data-team="0" class="t0 main-only">Control → <span class="tn0"></span></button>
-    <button data-cmd="control" data-team="1" class="t1 main-only">Control → <span class="tn1"></span></button>
-    <button data-cmd="award" data-team="0" class="t0 main-only">Award bank → <span class="tn0"></span></button>
-    <button data-cmd="award" data-team="1" class="t1 main-only">Award bank → <span class="tn1"></span></button>
+    <button data-cmd="control" data-team="0" class="t0 main-only" title="Round points go to this team (face-off or steal)">Points → <span class="tn0"></span></button>
+    <button data-cmd="control" data-team="1" class="t1 main-only" title="Round points go to this team (face-off or steal)">Points → <span class="tn1"></span></button>
     <span class="sep main-only"></span>
     <button data-cmd="revealAll" class="main-only" title="Show remaining answers (no points)">Reveal rest</button>
     <button data-cmd="prev" class="main-only">◀ Prev</button>
@@ -88,6 +86,7 @@
     <button data-cmd="mode" data-m="main" class="gold lg-only">Back to main game</button>
 
     <span class="sep"></span>
+    <button id="resetBtn" class="bad">↺ Reset game</button>
     <button id="lobbyBtn">👥 Lobby</button>
     <button id="fsBtn">⛶ Fullscreen</button>
     <button id="setupBtn">⚙ Setup</button>
@@ -157,7 +156,7 @@
       <div><label><input type="checkbox" id="multipliers"> Double points in round 4, triple from round 5 on</label></div>
       <div><label><input type="checkbox" id="shuffle"> Shuffle the question order for each new game</label></div>
     </div>
-    <button id="newGameBtn" class="bad">Start a new game (scores back to 0)</button>
+    <button id="newGameBtn" class="bad">↺ Reset the whole game</button>
   </section>
 
   <section>
@@ -189,8 +188,8 @@
   </section>
 </dialog>
 
-<script src="questions.js?v=6"></script>
-<script src="common.js?v=6"></script>
-<script src="board.js?v=6"></script>
+<script src="questions.js?v=7"></script>
+<script src="common.js?v=7"></script>
+<script src="board.js?v=7"></script>
 </body>
 </html>

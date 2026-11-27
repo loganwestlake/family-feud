@@ -50,9 +50,9 @@ In [Google Cloud Console → APIs & Services → Credentials](https://console.cl
 | Reveal an answer | Click its tile (click again to hide it) |
 | Next face-off / buzz again | **⚡ Arm Buzzers** (automatic at the start of each round) |
 | Wrong face-off answer | **✕ Face-off Miss** (one big X, not counted as a strike) |
-| Wrong answer while playing | **✕ Strike** (shows 1, 2, then 3 X's) |
-| Give a team the board | **Control → Team** |
-| End the round | **Award Bank → Team** (for a steal, award it to the stealing team) |
+| Wrong answer | **✕ Strike Team** (each team has its own 3 X's; the third X on the team in control pops up a Steal card) |
+| Start over | **↺ Reset game** (TV bar or phone): scores to 0, round 1, questions reshuffled |
+| Who gets the points | Automatic: the team that buzzes in first. If the other team wins the face-off or steals, tap **Points → Team** and the round's points move over. They lock in when you go to the next round. |
 | Show the answers nobody got | **Reveal Rest** (adds no points) |
 | Next question | **Next Round ▶** |
 

@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="../firebase-config.js?v=6" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
+<script src="../firebase-config.js?v=7" onerror="window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null"></script>
 <style>
   :root { --night:#0a1240; --night-2:#141f6b; --ink:#050a26; --card:#101c62; --line:#26388f; --gold:#f7c548; --gold-lt:#fff1b8;
     --ivory:#fff8e7; --muted:#a9b4ee; --team0:#ff5a4e; --team1:#1fd1c1; --red:#ff2d3f; --green:#2ee86b;
@@ -79,7 +79,8 @@
 
   .bankline { display: flex; justify-content: space-between; align-items: center; }
   .bankline b { font-family: var(--display); font-size: 32px; color: var(--gold-lt); }
-  .xs { font-family: var(--display); color: var(--red); font-size: 26px; letter-spacing: 6px; min-width: 70px; text-align: right; }
+  .xs { font-family: var(--display); color: #fff; font-size: 18px; letter-spacing: 3px; }
+  .xs:empty::before { content: '–'; opacity: .5; }
   .scores { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center; }
   .scores .nm { font-weight: 700; font-size: 18px; border-bottom: 3px solid var(--c); padding-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .scores .s { font-family: var(--display); font-size: 34px; }
@@ -136,8 +137,13 @@
     </div>
 
     <div class="card">
-      <div class="bankline"><span>Bank</span><b id="bank">0</b><span class="xs" id="xs"></span></div>
-      <div class="row"><button class="bad" data-cmd="strike">✕ Strike</button><button class="ghost" data-cmd="clearStrikes">Clear strikes</button></div>
+      <div class="bankline"><span>Round points</span><b id="bank">0</b></div>
+      <div class="meta" id="bankTo"></div>
+      <div class="row">
+        <button class="bad t0" data-cmd="strike" data-team="0">✕ <span class="tn0"></span> <span class="xs" id="xs0"></span></button>
+        <button class="bad t1" data-cmd="strike" data-team="1">✕ <span class="tn1"></span> <span class="xs" id="xs1"></span></button>
+      </div>
+      <div class="row"><button class="ghost" data-cmd="clearStrikes">Clear X's</button><button class="ghost" data-cmd="resetRound">Restart round</button></div>
     </div>
 
     <div class="card">
@@ -145,8 +151,8 @@
         <div style="--c:var(--team0)"><div class="nm" id="n0"></div><div class="s" id="s0">0</div><div class="ctl" id="c0"></div></div>
         <div style="--c:var(--team1)"><div class="nm" id="n1"></div><div class="s" id="s1">0</div><div class="ctl" id="c1"></div></div>
       </div>
-      <div class="row"><button class="t0" data-cmd="control" data-team="0">Give control</button><button class="t1" data-cmd="control" data-team="1">Give control</button></div>
-      <div class="row"><button class="gold" data-cmd="award" data-team="0">Award bank</button><button class="gold" data-cmd="award" data-team="1">Award bank</button></div>
+      <div class="hint">The team that buzzes in gets the points automatically. If the other team wins the face-off or steals, tap them here and the round's points move over.</div>
+      <div class="row"><button class="t0" data-cmd="control" data-team="0">Points → <span class="tn0"></span></button><button class="t1" data-cmd="control" data-team="1">Points → <span class="tn1"></span></button></div>
       <div class="row">
         <div class="row" style="margin:0"><button class="t0" data-cmd="adjust" data-team="0" data-d="-5">−5</button><button class="t0" data-cmd="adjust" data-team="0" data-d="5">+5</button></div>
         <div class="row" style="margin:0"><button class="t1" data-cmd="adjust" data-team="1" data-d="-5">−5</button><button class="t1" data-cmd="adjust" data-team="1" data-d="5">+5</button></div>
@@ -189,10 +195,11 @@
     <div class="row"><button class="ghost" data-cmd="lgNew">New questions</button><button class="gold" data-cmd="mode" data-m="main">Back to main game</button></div>
   </div>
 
-  <button class="ghost" id="leave" style="margin-top:22px">Leave this game</button>
+  <button class="bad" id="resetGame" style="margin-top:22px">↺ Reset the whole game</button>
+  <button class="ghost" id="leave" style="margin-top:12px">Leave this game</button>
 </section>
 
-<script src="../common.js?v=6"></script>
+<script src="../common.js?v=7"></script>
 <script>
 (() => {
   const F = window.FFO, { FB, store } = F;
@@ -268,6 +275,7 @@
     send({ t: 'lgAnswer', q: lgQ, p: lgPlayer(), a: -1, text: $('#otherIn').value.trim() || 'No answer' });
     $('#otherIn').value = ''; advance();
   };
+  $('#resetGame').onclick = () => { if (confirm('Reset the whole game? Scores go back to 0 and the questions are reshuffled.')) send({ t: 'reset' }); };
   $('#showP1').onclick = () => send({ t: 'lgShowP1', v: !(st.lightning && st.lightning.showP1) });
   const lgPlayer = () => (st && st.lightning && st.lightning.player) || 1;
   let advanceTimer;
@@ -312,7 +320,11 @@
       box.appendChild(b);
     });
     $('#bank').textContent = st.bank;
-    $('#xs').textContent = '✕'.repeat(st.strikes || 0);
+    $('#bankTo').textContent = st.control != null ? `Going to ${names[st.control]}` : 'Nobody has control yet';
+    const xs = Array.isArray(st.strikes) ? st.strikes : asArray(st.strikes);
+    [0, 1].forEach(t => { $('#xs' + t).textContent = '✕'.repeat(xs[t] || 0); });
+    document.querySelectorAll('.tn0').forEach(e => (e.textContent = names[0]));
+    document.querySelectorAll('.tn1').forEach(e => (e.textContent = names[1]));
     const scores = asArray(st.scores);
     [0, 1].forEach(t => {
       $('#n' + t).textContent = names[t];

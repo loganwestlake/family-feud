@@ -25,22 +25,12 @@ body {
 button { font-family: var(--text); }
 :focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
 
-/* ---------- Stage: two slow spotlights + floor glow (ambient motion) ---------- */
+/* ---------- Stage: static glow only (fast on slow TV computers) ---------- */
 .stage { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
-.beam {
-  position: absolute; top: -20vh; width: 60vw; height: 140vh; transform-origin: 50% 0;
-  background: conic-gradient(from 180deg at 50% 0, transparent 0 168deg, rgba(255,241,184,.10) 176deg 184deg, transparent 192deg);
-  filter: blur(6px); mix-blend-mode: screen;
-}
-.beam.l { left: -10vw; animation: sweepL 14s ease-in-out infinite alternate; }
-.beam.r { right: -10vw; animation: sweepR 17s ease-in-out infinite alternate; }
-@keyframes sweepL { from { transform: rotate(-28deg); } to { transform: rotate(6deg); } }
-@keyframes sweepR { from { transform: rotate(28deg); } to { transform: rotate(-8deg); } }
 .floor { position: absolute; left: 10%; right: 10%; bottom: -12vh; height: 30vh; border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(31,91,255,.35), transparent); }
-#sparkles { position: absolute; inset: 0; width: 100%; height: 100%; }
+  background: radial-gradient(closest-side, rgba(31,91,255,.3), transparent); }
 
-#app { position: relative; z-index: 1; height: 100vh; display: flex; flex-direction: column; padding: 1.6vh 2.4vw 0; }
+#app { position: relative; z-index: 1; height: 100vh; display: flex; flex-direction: column; padding: 1.2vh 1.6vw 0; }
 
 /* ---------- Logo ---------- */
 .logo { text-align: center; line-height: .86; }
@@ -50,16 +40,19 @@ button { font-family: var(--text); }
   text-shadow: 0 .25vh 0 #e3a92a, 0 .5vh 0 #c98d18, 0 .75vh 0 #9a6a12, 0 1vh 0 #6b4708, 0 1.6vh 2vh rgba(0,0,0,.6), 0 0 4vh rgba(247,197,72,.35);
 }
 
-/* ---------- Top line: round, bank, multiplier ---------- */
-.topline { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 3vw; margin: 2vh 0 1.4vh; }
-.pill { font-weight: 600; font-size: 2.6vh; letter-spacing: .04em; color: #c8d1ff; }
+/* ---------- Top line: small logo left, round / bank / multiplier ---------- */
+.topline { display: flex; align-items: center; gap: 2.2vw; margin: 0 0 1vh; }
+.game-logo { flex: 1; text-align: left; }
+.game-logo .big { font-size: 5vh; }
+.topline .spacer { display: none; }
+.pill { font-weight: 700; font-size: 3.2vh; letter-spacing: .02em; color: #d6dcff; }
 #roundInfo { text-align: right; }
-#multInfo { text-align: left; }
-#multInfo.hot { color: var(--gold); text-shadow: 0 0 1.6vh rgba(247,197,72,.7); animation: pulse 1.4s ease-in-out infinite; }
+#multInfo { flex: 1; text-align: left; }
+#multInfo.hot { color: var(--gold); text-shadow: 0 0 1.6vh rgba(247,197,72,.7); }
 .bank { text-align: center; }
-.bank .label { font-weight: 700; font-size: 1.9vh; letter-spacing: .3em; color: var(--gold); }
+.bank .label { font-weight: 700; font-size: 2.2vh; letter-spacing: .3em; color: var(--gold); }
 .bank .num {
-  font-family: var(--display); font-size: 5.4vh; line-height: 1.1; min-width: 13vw; padding: .2vh 2vw;
+  font-family: var(--display); font-size: 6.6vh; line-height: 1.1; min-width: 14vw; padding: .2vh 2vw;
   background: linear-gradient(#0c1a5c, #050b30); border-radius: 1.4vh; color: var(--gold-lt);
   box-shadow: 0 0 0 .35vh var(--gold), 0 0 0 .7vh #3a2700, inset 0 .6vh 1.6vh rgba(0,0,0,.6), 0 0 3vh rgba(247,197,72,.3);
   text-shadow: 0 0 1.4vh rgba(255,241,184,.6);
@@ -69,50 +62,58 @@ button { font-family: var(--text); }
 @keyframes pulse { 50% { opacity: .55; } }
 
 /* ---------- Main row ---------- */
-main { flex: 1; display: grid; grid-template-columns: 16vw 1fr 16vw; gap: 2.2vw; align-items: center; min-height: 0; }
+main { flex: 1; display: grid; grid-template-columns: 18vw 1fr 18vw; gap: 1.4vw; align-items: center; min-height: 0; }
 
 /* Team podiums */
 .team { text-align: center; transition: transform .35s cubic-bezier(.3,1.6,.5,1); --c: var(--team0); }
 #team1 { --c: var(--team1); }
 .team .name {
-  font-weight: 700; font-size: 3.2vh; letter-spacing: .03em; padding: .7vh .8vw; border-radius: 1.2vh 1.2vh 0 0;
+  font-weight: 700; font-size: 4.2vh; letter-spacing: .02em; padding: .6vh .8vw; border-radius: 1.2vh 1.2vh 0 0;
   background: linear-gradient(180deg, color-mix(in srgb, var(--c) 85%, white), var(--c));
   color: #1a0b10; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .team .score {
-  font-family: var(--display); font-size: 10vh; line-height: 1.25; color: var(--ivory);
+  font-family: var(--display); font-size: 14vh; line-height: 1.2; color: var(--ivory);
   background: linear-gradient(#0d1b63, #040a2c 70%); border-radius: 0 0 1.6vh 1.6vh;
   box-shadow: inset 0 0 0 .35vh color-mix(in srgb, var(--c) 70%, transparent), inset 0 1.4vh 3vh rgba(0,0,0,.55), 0 2vh 4vh rgba(0,0,0,.45);
   text-shadow: 0 0 2vh rgba(255,248,231,.35);
 }
-.team .tag { margin-top: 1.4vh; font-weight: 700; font-size: 2.4vh; letter-spacing: .08em; color: var(--c); height: 3vh; opacity: 0; transition: opacity .3s; }
-.team.control .tag { opacity: 1; animation: pulse 1.6s ease-in-out infinite; }
-.team .keys { margin-top: .8vh; font-size: 1.9vh; color: #a9b4ee; }
+.team .tag { margin-top: 1vh; font-weight: 700; font-size: 3vh; letter-spacing: .08em; color: var(--c); height: 3vh; opacity: 0; transition: opacity .3s; }
+.team.control .tag { opacity: 1; }
+.team .xs { display: flex; justify-content: center; gap: .8vw; margin-top: 1.6vh; }
+.team .xs span {
+  width: 7vh; height: 7vh; display: grid; place-items: center; font-family: var(--display); font-size: 5vh; line-height: 1;
+  border-radius: 1.2vh; color: rgba(255,255,255,.12); background: rgba(5,10,38,.7); box-shadow: inset 0 0 0 .3vh rgba(255,255,255,.15);
+}
+.team .xs span.on { color: var(--red); background: #2a0610; box-shadow: inset 0 0 0 .4vh var(--red), 0 0 2vh rgba(255,45,63,.55); }
+.team .keys { margin-top: .6vh; font-size: 2.2vh; color: #a9b4ee; }
 .team.buzzed { transform: translateY(-1.2vh) scale(1.06); }
-.team.buzzed .score { box-shadow: inset 0 0 0 .5vh var(--c), 0 0 5vh var(--c), 0 0 12vh color-mix(in srgb, var(--c) 60%, transparent); animation: glow .7s ease-in-out infinite alternate; }
-@keyframes glow { to { box-shadow: inset 0 0 0 .5vh var(--c), 0 0 2vh var(--c), 0 0 5vh color-mix(in srgb, var(--c) 40%, transparent); } }
+.team.buzzed .score { box-shadow: inset 0 0 0 .6vh var(--c), 0 0 4vh var(--c); }
 
 /* ---------- The hero: marquee board ---------- */
 .center { display: flex; flex-direction: column; min-height: 0; }
 .question {
-  text-align: center; font-weight: 600; font-size: 3.6vh; line-height: 1.2; padding: 1.1vh 2vw; margin-bottom: 1.6vh; min-height: 6.4vh;
+  text-align: center; font-weight: 700; font-size: 4.8vh; line-height: 1.15; padding: .8vh 1.6vw; margin-bottom: 1.2vh; min-height: 7vh;
   display: flex; align-items: center; justify-content: center; color: var(--ivory);
   background: linear-gradient(90deg, transparent, rgba(5,10,38,.75) 12%, rgba(5,10,38,.75) 88%, transparent);
 }
 .frame {
-  position: relative; border-radius: 3.6vh; padding: 2.2vh;
+  position: relative; border-radius: 3.6vh; padding: 2vh;
   background:
     linear-gradient(160deg, #fff1b8 0%, #f7c548 18%, #b9841c 45%, #f7c548 70%, #8a5c0c 100%);
   box-shadow: 0 0 0 .4vh #3a2700, 0 0 0 .8vh rgba(247,197,72,.25), 0 3vh 6vh rgba(0,0,0,.6), 0 0 8vh rgba(247,197,72,.18);
 }
 .bulbs { position: absolute; inset: .55vh; border-radius: 3.1vh; pointer-events: none; }
-.bulbs i {
-  position: absolute; width: 1vh; height: 1vh; margin: -.5vh 0 0 -.5vh; border-radius: 50%;
-  background: #6b4a0e; box-shadow: inset 0 0 .2vh rgba(0,0,0,.6);
-}
-.bulbs i.on { background: #fffbe6; box-shadow: 0 0 .8vh 0.2vh #ffe58a, 0 0 2vh #ffcf3f; }
+.bulbs .layer { position: absolute; inset: 0; }
+.bulbs i { position: absolute; width: 1.1vh; height: 1.1vh; margin: -.55vh 0 0 -.55vh; border-radius: 50%; background: #6b4a0e; }
+.bulbs .lit i { background: #fffbe6; box-shadow: 0 0 .9vh .25vh #ffd75e; }
+/* Opacity-only blinking runs on the graphics chip: smooth even on a slow TV computer. */
+.bulbs .lit { will-change: opacity; animation: blink 1.2s steps(1, end) infinite; }
+.bulbs .lit.b { animation-delay: -.6s; }
+body.flash .bulbs .lit { animation-duration: .3s; }
+@keyframes blink { 50% { opacity: 0; } }
 .board {
-  position: relative; border-radius: 2.2vh; padding: 1.4vh; height: 46vh;
+  position: relative; border-radius: 2.2vh; padding: 1.2vh; height: 60vh;
   background: radial-gradient(120% 100% at 50% 0%, #0b1f6e, #030a2e 70%);
   box-shadow: inset 0 0 0 .3vh #1c2f86, inset 0 1vh 3vh rgba(0,0,0,.7);
   display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); grid-auto-flow: column; gap: 1vh;
@@ -133,7 +134,7 @@ main { flex: 1; display: grid; grid-template-columns: 16vw 1fr 16vw; gap: 2.2vw;
   box-shadow: inset 0 0 0 .25vh #8fb0ff, inset 0 -1vh 2vh rgba(0,0,0,.35);
 }
 .face.front .no {
-  font-family: var(--display); font-size: 3.8vh; color: var(--ivory); min-width: 9vh; text-align: center; line-height: 1.5;
+  font-family: var(--display); font-size: 5.4vh; color: var(--ivory); min-width: 12vh; text-align: center; line-height: 1.5;
   background: radial-gradient(ellipse at 50% 30%, #4f8cff, #0a2a8c); border-radius: 50%;
   box-shadow: 0 0 0 .25vh #d6e3ff, 0 .4vh 1vh rgba(0,0,0,.5); text-shadow: 0 .3vh 0 rgba(0,0,0,.6);
 }
@@ -142,33 +143,27 @@ main { flex: 1; display: grid; grid-template-columns: 16vw 1fr 16vw; gap: 2.2vw;
   background: linear-gradient(180deg, #4a85ff 0%, #2361f0 45%, #0d37b0 100%);
   box-shadow: inset 0 0 0 .25vh #b9ceff, inset 0 -1vh 2vh rgba(0,0,0,.3);
 }
-.tile.revealed .face.back::before { /* one shine sweep when revealed */
-  content: ''; position: absolute; top: 0; bottom: 0; width: 30%; left: -40%;
-  background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent);
+.tile.revealed .face.back::before { /* one shine sweep when revealed (transform only: cheap) */
+  content: ''; position: absolute; top: 0; bottom: 0; width: 30%; left: 0; transform: translateX(-120%);
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.5), transparent);
   animation: shine .9s .55s ease-out forwards;
 }
-@keyframes shine { to { left: 120%; } }
+@keyframes shine { to { transform: translateX(400%); } }
 .face.back .txt {
-  flex: 1; padding: 0 1vw; font-weight: 700; font-size: 3.9vh; text-transform: uppercase; letter-spacing: .02em; text-align: center;
+  flex: 1; padding: 0 1vw; font-weight: 700; font-size: 5.6vh; text-transform: uppercase; letter-spacing: .02em; text-align: center;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 .3vh 0 rgba(0,0,0,.55);
 }
 .face.back .pts {
   width: 22%; height: 100%; display: flex; align-items: center; justify-content: center;
-  font-family: var(--display); font-size: 3.8vh; color: var(--gold-lt);
+  font-family: var(--display); font-size: 5.4vh; color: var(--gold-lt);
   background: linear-gradient(#0d2a8f, #04145a); box-shadow: inset .25vh 0 0 #b9ceff; text-shadow: 0 0 1.2vh rgba(247,197,72,.6);
 }
 .tile.empty { cursor: default; }
 .tile.empty .face.front { background: linear-gradient(#0a2168, #061450); box-shadow: inset 0 0 0 .2vh #26408f; }
 .tile.empty .face.front::after, .tile.empty .no { display: none; }
 
-.status { display: flex; align-items: center; justify-content: space-between; margin-top: 1.6vh; gap: 2vw; }
-.strikes { display: flex; gap: .8vw; }
-.strikes span {
-  width: 5.2vh; height: 5.2vh; display: grid; place-items: center; font-family: var(--display); font-size: 3.4vh;
-  border-radius: 1vh; color: transparent; background: rgba(5,10,38,.6); box-shadow: inset 0 0 0 .25vh rgba(255,255,255,.15);
-}
-.strikes span.on { color: var(--red); box-shadow: inset 0 0 0 .3vh var(--red), 0 0 2vh rgba(255,45,63,.6); text-shadow: 0 0 1vh rgba(255,45,63,.8); }
-#buzzStatus { flex: 1; text-align: right; font-weight: 600; font-size: 2.6vh; color: #c8d1ff; }
+.status { display: flex; justify-content: center; margin-top: 1.2vh; }
+#buzzStatus { text-align: center; font-weight: 700; font-size: 3.4vh; color: #d6dcff; }
 #buzzStatus.armed { color: var(--gold); animation: pulse 1s ease-in-out infinite; }
 
 /* ---------- Host control bar (fades in on hover) ---------- */
@@ -195,7 +190,7 @@ main { flex: 1; display: grid; grid-template-columns: 16vw 1fr 16vw; gap: 2.2vw;
 #lightning { display: none; flex: 1; min-height: 0; flex-direction: column; align-items: center; justify-content: center; }
 .mode-lightning #lightning { display: flex; }
 .mode-lightning main, .mode-lightning .topline { display: none; }
-.lg-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: min(78vw, 1500px); margin-bottom: 1.6vh; }
+.lg-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: 90vw; margin-bottom: 1.6vh; }
 .lg-title { font-family: var(--display); font-size: 5vh; color: var(--gold); text-shadow: 0 .5vh 0 #6b4708, 0 0 3vh rgba(247,197,72,.4); }
 .lg-player { text-align: right; font-weight: 700; font-size: 3vh; color: #c8d1ff; }
 .lg-timer { position: relative; width: 13vh; height: 13vh; }
@@ -206,16 +201,16 @@ main { flex: 1; display: grid; grid-template-columns: 16vw 1fr 16vw; gap: 2.2vw;
 .lg-timer.low .ring { stroke: var(--red); }
 .lg-timer span { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-size: 5.6vh; }
 .lg-timer.low span { color: var(--red); animation: pulse .5s infinite; }
-#lightning .frame { width: min(78vw, 1500px); }
+#lightning .frame { width: 90vw; }
 .lg-board { border-radius: 2.2vh; padding: 1.4vh; background: radial-gradient(120% 100% at 50% 0%, #0b1f6e, #030a2e 70%);
   box-shadow: inset 0 0 0 .3vh #1c2f86, inset 0 1vh 3vh rgba(0,0,0,.7); display: grid; grid-template-columns: 1fr 1fr; gap: 1vh 2.4vw; }
-.lg-cell { display: grid; grid-template-columns: 1fr 7vw; gap: .6vw; height: 6.6vh; }
+.lg-cell { display: grid; grid-template-columns: 1fr 8vw; gap: .6vw; height: 8.4vh; }
 .lg-cell > div {
   border-radius: .8vh; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
   background: linear-gradient(180deg, #2a64f5, #0b2fa8); box-shadow: inset 0 0 0 .22vh #8fb0ff;
-  font-weight: 700; font-size: 3.4vh; text-transform: uppercase; white-space: nowrap; text-overflow: ellipsis; padding: 0 .8vw;
+  font-weight: 700; font-size: 4.4vh; text-transform: uppercase; white-space: nowrap; text-overflow: ellipsis; padding: 0 .8vw;
 }
-.lg-cell .pts { font-family: var(--display); font-size: 3.2vh; color: var(--gold-lt); background: linear-gradient(#0d2a8f, #04145a); }
+.lg-cell .pts { font-family: var(--display); font-size: 4.2vh; color: var(--gold-lt); background: linear-gradient(#0d2a8f, #04145a); }
 .lg-cell .ans:empty::before, .lg-cell .pts:empty::before { content: ''; }
 .lg-cell.covered > div { color: transparent; background: repeating-linear-gradient(135deg, #0b2a8c 0 1vh, #0a2580 1vh 2vh); }
 .lg-cell .pop { animation: bump .5s cubic-bezier(.3,1.8,.5,1); }
@@ -237,13 +232,12 @@ main { flex: 1; display: grid; grid-template-columns: 16vw 1fr 16vw; gap: 2.2vw;
 @keyframes shake { 25% { transform: translateX(-2vh); } 75% { transform: translateX(2vh); } }
 #buzzBanner { flex-direction: column; background: radial-gradient(circle, color-mix(in srgb, var(--c) 35%, transparent), rgba(5,10,38,.88) 70%); overflow: hidden; }
 #buzzBanner::before {
-  content: ''; position: absolute; inset: -50%;
-  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--c) 30%, transparent) 0 8deg, transparent 8deg 20deg);
-  animation: spin 8s linear infinite;
+  content: ''; position: absolute; inset: 0;
+  background: repeating-conic-gradient(from 0deg at 50% 50%, color-mix(in srgb, var(--c) 22%, transparent) 0 8deg, transparent 8deg 20deg);
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 #buzzBanner .who {
-  position: relative; font-family: var(--display); font-size: 14vh; color: var(--c); text-align: center; line-height: 1; padding: 0 4vw;
+  position: relative; font-family: var(--display); font-size: 17vh; color: var(--c); text-align: center; line-height: 1; padding: 0 4vw;
   -webkit-text-stroke: .35vh #fff; text-shadow: 0 0 6vh var(--c), 0 1.2vh 0 rgba(0,0,0,.5); animation: xin .35s cubic-bezier(.2,2,.5,1) both;
 }
 #buzzBanner .sub { position: relative; font-weight: 700; font-size: 5vh; margin-top: 2vh; letter-spacing: .06em; }
@@ -319,5 +313,5 @@ dialog .hint code { background: #050b30; padding: 1px 5px; border-radius: 4px; }
 @media (max-width: 640px) { dialog .grid2 { grid-template-columns: 1fr; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .beam, #buzzBanner::before, .team.control .tag, #multInfo.hot { animation: none; }
+  .bulbs .lit, #buzzStatus.armed { animation: none; }
 }

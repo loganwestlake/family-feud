@@ -54,11 +54,12 @@
     if (settings.shuffle) for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; }
     return o;
   };
-  const freshRound = () => ({ revealed: [], banked: [], strikes: 0, bank: 0, bankOpen: true, armed: false, armId: null, buzz: null, control: null });
+  const freshRound = () => ({ revealed: [], banked: [], strikes: [0, 0], bank: 0, bankOpen: true, armed: false, armId: null, buzz: null, control: null });
   const newGame = () => Object.assign({ scores: [0, 0], round: 0, winner: null, order: makeOrder(), mode: 'main', lg: null }, freshRound());
   let state = Object.assign(newGame(), store.get('state', {}));
   if (!Array.isArray(state.order) || state.order.length !== questions.length) state.order = makeOrder();
   state.round = Math.min(state.round, Math.max(0, questions.length - 1));
+  if (!Array.isArray(state.strikes)) state.strikes = [0, 0];
   const qAt = r => questions[state.order[r]];
 
   const mult = r => !settings.multipliers ? 1 : r < 3 ? 1 : r === 3 ? 2 : 3;
@@ -95,54 +96,33 @@
     };
   })();
 
-  // ---------------------------------------------------------------- ambient: marquee bulbs + sparkles
+  // ---------------------------------------------------------------- ambient: marquee bulbs
+  // Built once. Two layers of lit bulbs take turns via a CSS opacity animation, which the
+  // graphics chip handles on its own, so it costs the (slow) TV processor almost nothing.
   function layBulbs(box) {
-    box.innerHTML = '';
-    const w = box.clientWidth, h = box.clientHeight, gap = Math.max(18, innerHeight * 0.024);
+    const w = box.clientWidth, h = box.clientHeight, gap = Math.max(18, innerHeight * 0.026);
     const pts = [];
     const nx = Math.max(2, Math.round(w / gap)), ny = Math.max(2, Math.round(h / gap));
     for (let i = 0; i < nx; i++) pts.push([i / nx * w, 0]);
     for (let i = 0; i < ny; i++) pts.push([w, i / ny * h]);
     for (let i = 0; i < nx; i++) pts.push([w - i / nx * w, h]);
     for (let i = 0; i < ny; i++) pts.push([0, h - i / ny * h]);
-    pts.forEach(([x, y]) => { const b = document.createElement('i'); b.style.left = x + 'px'; b.style.top = y + 'px'; box.appendChild(b); });
+    const layers = ['base', 'lit a', 'lit b'].map(c => { const d = document.createElement('div'); d.className = 'layer ' + c; return d; });
+    pts.forEach(([x, y], i) => {
+      const put = layer => { const el = document.createElement('i'); el.style.left = x + 'px'; el.style.top = y + 'px'; layer.appendChild(el); };
+      put(layers[0]); put(layers[1 + (i % 2)]);
+    });
+    box.replaceChildren(...layers);
   }
   const layAllBulbs = () => $$('.bulbs').forEach(layBulbs);
-  let chase = 0, flashUntil = 0;
-  setInterval(() => {
-    chase++;
-    const flash = Date.now() < flashUntil;
-    $$('.bulbs').forEach(box => {
-      const bulbs = box.children;
-      for (let i = 0; i < bulbs.length; i++) {
-        const on = flash ? (chase % 2 === 0) : ((i + chase) % 4 === 0 || (reduceMotion && i % 2 === 0));
-        bulbs[i].classList.toggle('on', on);
-      }
-    });
-  }, 140);
-  const flashBulbs = ms => { flashUntil = Date.now() + ms; };
-  addEventListener('resize', layAllBulbs);
-
-  (function sparkles() {
-    const c = $('#sparkles'), g = c.getContext('2d');
-    const N = reduceMotion ? 20 : 70;
-    let parts = [];
-    const resize = () => { c.width = innerWidth; c.height = innerHeight; parts = Array.from({ length: N }, () => spawn(true)); };
-    const spawn = any => ({ x: Math.random() * c.width, y: any ? Math.random() * c.height : c.height + 10, r: Math.random() * 1.8 + 0.4,
-      v: Math.random() * 0.25 + 0.05, p: Math.random() * Math.PI * 2 });
-    resize(); addEventListener('resize', resize);
-    (function frame() {
-      g.clearRect(0, 0, c.width, c.height);
-      for (const s of parts) {
-        if (!reduceMotion) { s.y -= s.v; s.p += 0.03; }
-        if (s.y < -10) Object.assign(s, spawn(false));
-        g.globalAlpha = 0.25 + 0.5 * (0.5 + 0.5 * Math.sin(s.p));
-        g.fillStyle = '#fff1b8';
-        g.beginPath(); g.arc(s.x, s.y, s.r, 0, Math.PI * 2); g.fill();
-      }
-      requestAnimationFrame(frame);
-    })();
-  })();
+  let flashTimer;
+  function flashBulbs(ms) {
+    document.body.classList.add('flash');
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => document.body.classList.remove('flash'), ms);
+  }
+  let resizeTimer;
+  addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(layAllBulbs, 250); });
 
   // Smoothly count a number up/down to its new value.
   const shown = new WeakMap();
@@ -151,7 +131,7 @@
     shown.set(el, to);
     if (from === to) { el.textContent = to; return; }
     el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
-    const t0 = performance.now(), dur = 700;
+    const t0 = performance.now(), dur = 450;
     (function step(now) {
       const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
       el.textContent = Math.round(from + (to - from) * e);
@@ -210,7 +190,8 @@
     [0, 1].forEach(t => {
       const el = $('#team' + t);
       el.querySelector('.name').textContent = settings.teamNames[t];
-      countTo(el.querySelector('.score'), state.scores[t]);
+      countTo(el.querySelector('.score'), liveScore(t));
+      el.querySelectorAll('.xs span').forEach((x, i) => x.classList.toggle('on', i < state.strikes[t]));
       el.classList.toggle('control', state.control === t);
       el.classList.toggle('buzzed', !!state.buzz && state.buzz.team === t);
       const n = teamPlayers(t).length;
@@ -219,7 +200,6 @@
         : (settings.localKeys ? (t === 0 ? 'Buzz: left side of keyboard' : 'Buzz: right side of keyboard') : '');
       $$('.tn' + t).forEach(s => (s.textContent = settings.teamNames[t]));
     });
-    $$('#strikes span').forEach((s, i) => s.classList.toggle('on', i < state.strikes));
 
     const bs = $('#buzzStatus');
     bs.classList.toggle('armed', state.armed);
@@ -228,7 +208,19 @@
       const who = state.buzz.player ? ` (${state.buzz.player})` : '';
       const late = state.buzz.lateBy != null ? `. ${settings.teamNames[1 - state.buzz.team]} was ${(state.buzz.lateBy / 1000).toFixed(3)}s late` : '';
       bs.textContent = `${settings.teamNames[state.buzz.team]}${who} buzzed first${late}`;
-    } else bs.textContent = 'Buzzers locked. Arm them for the face-off';
+    } else bs.textContent = state.control != null ? `${settings.teamNames[state.control]} has control` : 'Buzzers locked. Arm them for the face-off';
+  }
+
+  // Round points belong to whichever team has control; they lock in when the round changes.
+  const liveScore = t => state.scores[t] + (state.control === t ? state.bank : 0);
+  function commitRound() {
+    if (state.control != null) state.scores[state.control] += state.bank;
+    state.bank = 0; state.banked = []; state.bankOpen = false;
+  }
+  function checkWin() {
+    if (settings.target > 0 && state.winner == null && state.control != null && liveScore(state.control) >= settings.target) {
+      state.winner = state.control; setTimeout(Sound.win, 700);
+    }
   }
 
   // ---------------------------------------------------------------- overlays
@@ -272,7 +264,7 @@
     o.classList.add('show');
     flashBulbs(4000);
     const colors = ['#f7c548', '#ff5a4e', '#1fd1c1', '#fff8e7', '#1f5bff'];
-    for (let i = 0; i < 140; i++) {
+    for (let i = 0; i < 50; i++) {
       const c = document.createElement('div');
       c.className = 'confetti';
       c.style.left = Math.random() * 100 + 'vw';
@@ -433,41 +425,58 @@
           Sound.ding(); flashBulbs(500);
           if (state.bankOpen) { const p = q.a[i].pts * mult(state.round); state.banked[i] = p; state.bank += p; }
         }
+        checkWin();
         break;
       }
       case 'revealAll':
         if (!q) return;
         q.a.forEach((_, i) => { state.revealed[i] = true; });
         state.bankOpen = false; Sound.ding(); break;
-      case 'strike':
-        state.strikes = Math.min(3, state.strikes + 1); showX(state.strikes); Sound.strike(); break;
+      case 'strike': {
+        const t = c.team != null && c.team !== '' ? +c.team : state.control;
+        if (t !== 0 && t !== 1) { showX(1); Sound.strike(); break; }
+        state.strikes[t] = Math.min(3, state.strikes[t] + 1);
+        showX(state.strikes[t]); Sound.strike();
+        if (state.strikes[t] === 3 && state.control === t) {
+          const other = 1 - t;
+          setTimeout(() => showCard('Steal!', `${settings.teamNames[other]}: one guess to steal ${state.bank} points`), 1500);
+        }
+        break;
+      }
       case 'x1':
         showX(1); Sound.strike(); break;
       case 'clearStrikes':
-        state.strikes = 0; break;
-      case 'control':
-        state.control = +c.team; if (state.armed) lockBuzzers(); break;
-      case 'award': {
+        state.strikes = [0, 0]; break;
+      case 'control': {
+        // The round's points move with control (face-off won by the other team, or a steal).
         const t = +c.team;
-        state.scores[t] += state.bank;
-        state.bank = 0; state.banked = []; state.bankOpen = false;
+        if (state.control !== t && state.bank > 0) { Sound.bank(); flashBulbs(900); }
+        state.control = t; if (state.armed) lockBuzzers();
+        checkWin();
+        break;
+      }
+      case 'award': {
+        // Older remotes: give the round to this team right now.
+        state.control = +c.team; commitRound();
         if (state.armed) lockBuzzers();
-        Sound.bank(); flashBulbs(1200);
-        if (settings.target > 0 && state.scores[t] >= settings.target) { state.winner = t; setTimeout(Sound.win, 700); }
+        Sound.bank(); flashBulbs(1200); checkWin();
         break;
       }
       case 'adjust':
         state.scores[+c.team] = Math.max(0, state.scores[+c.team] + (+c.d || 0)); break;
       case 'next':
         if (state.round >= questions.length - 1) return;
-        state.round++; Object.assign(state, freshRound()); arm(); showRoundCard(); break;
+        commitRound(); state.round++; Object.assign(state, freshRound()); arm(); showRoundCard(); break;
       case 'prev':
         if (state.round <= 0) return;
-        state.round--; Object.assign(state, freshRound()); arm(); showRoundCard(); break;
+        commitRound(); state.round--; Object.assign(state, freshRound()); arm(); showRoundCard(); break;
       case 'resetRound':
         Object.assign(state, freshRound()); arm(); break;
       case 'newGame':
-        state = newGame(); shownWinner = null; arm(); showRoundCard(); break;
+      case 'reset':
+        clearInterval(lgInterval);
+        state = newGame(); shownWinner = null; $('#winOverlay').classList.remove('show');
+        arm(); showCard('New game', 'Scores reset. Good luck!'); break;
       case 'dismissWin':
         state.winner = null; if (state.lg) state.lg.won = state.lg.won ? 'seen' : false;
         $('#winOverlay').classList.remove('show'); shownWinner = null; break;
@@ -484,6 +493,7 @@
     if (!state.armed) return;
     state.armed = false;
     state.buzz = { team, player: player || '', lateBy: null };
+    state.control = team; // points from now on go to the team that buzzed in
     Sound.buzz(team);
     showBuzz(team, player);
     computeLate();
@@ -605,7 +615,9 @@
   }));
   $$('[data-defaults]').forEach(b => b.addEventListener('click', () => { settings.keys = DEFAULT_KEYS.map(k => k.slice()); learning = null; showKeys(); }));
   $('#sampleBtn').addEventListener('click', () => { $('#questionsText').value = window.SAMPLE_QUESTIONS; });
-  $('#newGameBtn').addEventListener('click', () => { if (confirm('Reset scores and go back to round 1?')) exec({ t: 'newGame' }); });
+  const RESET_Q = 'Reset the whole game? Scores go back to 0 and the questions are reshuffled.';
+  $('#newGameBtn').addEventListener('click', () => { if (confirm(RESET_Q)) exec({ t: 'reset' }); });
+  $('#resetBtn').addEventListener('click', e => { e.target.blur(); if (confirm(RESET_Q)) exec({ t: 'reset' }); });
   $('#newCodesBtn').addEventListener('click', () => { $('#room').value = F.randomRoom(); $('#pin').value = F.randomPin(); updateHostQr(); });
   $('#room').addEventListener('input', e => { e.target.value = F.cleanRoom(e.target.value); updateHostQr(); });
   $('#pin').addEventListener('input', e => { e.target.value = F.cleanPin(e.target.value); updateHostQr(); });
@@ -727,7 +739,7 @@
     const snapshot = F.clean({
       mode: state.mode,
       teamNames: settings.teamNames,
-      scores: state.scores,
+      scores: [liveScore(0), liveScore(1)],
       round: state.round,
       totalRounds: questions.length,
       multiplier: mult(state.round),
