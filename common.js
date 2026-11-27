@@ -4,6 +4,19 @@
 // The database rules (database.rules.json) don't let anyone list games/, so a game can only be
 // opened by someone who knows both the room code and the 4-digit PIN.
 window.FFO = (() => {
+  // Bump this with every release. It shows in the bottom-right corner of every screen, so you can
+  // tell at a glance whether a device has loaded the latest version (if not: Ctrl + Shift + R).
+  const VERSION = '1.9';
+  function showVersion() {
+    if (document.getElementById('appVersion')) return;
+    const el = document.createElement('div');
+    el.id = 'appVersion';
+    el.textContent = 'v' + VERSION;
+    el.style.cssText = 'position:fixed;right:10px;bottom:6px;z-index:9999;font:600 14px/1 "Barlow Condensed","Arial Narrow",sans-serif;' +
+      'color:rgba(255,248,231,.6);background:rgba(5,10,38,.55);padding:4px 8px;border-radius:6px;pointer-events:none;letter-spacing:.04em';
+    document.body.appendChild(el);
+  }
+  if (document.body) showVersion(); else document.addEventListener('DOMContentLoaded', showVersion);
   // Folder this script was loaded from (the site root), so pages in subfolders find shared files.
   const ROOT = (document.currentScript && document.currentScript.src) || location.href;
   const store = {
@@ -117,5 +130,5 @@ window.FFO = (() => {
 
   const siteUrl = path => new URL(path, ROOT).href.replace(/[?#].*$/, '');
 
-  return { keepAwake, siteUrl, store, parseConfig, getConfig, cleanRoom, cleanPin, validRoom, validPin, randomRoom, randomPin, randomId, FB, friendlyError, enc, dec, clean };
+  return { VERSION, keepAwake, siteUrl, store, parseConfig, getConfig, cleanRoom, cleanPin, validRoom, validPin, randomRoom, randomPin, randomId, FB, friendlyError, enc, dec, clean };
 })();

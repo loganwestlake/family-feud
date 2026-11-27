@@ -583,7 +583,7 @@
     }
     save(); render();
   });
-  const openRules = () => { const r = $('#rules'); if (!r.querySelector('iframe').src) r.querySelector('iframe').src = 'rules.html?v=8&embed=1'; r.classList.add('show'); };
+  const openRules = () => { const r = $('#rules'); if (!r.querySelector('iframe').src) r.querySelector('iframe').src = 'rules.html?v=9&embed=1'; r.classList.add('show'); };
   $('#rulesBtn').addEventListener('click', e => { e.target.blur(); openRules(); });
   $('#lobbyRules').addEventListener('click', openRules);
   $('#rulesClose').addEventListener('click', () => $('#rules').classList.remove('show'));

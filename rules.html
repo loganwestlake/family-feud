@@ -111,6 +111,7 @@
 
   <div class="print"><button onclick="window.print()">Print these rules</button></div>
 </div>
-<script>if (/embed=1/.test(location.search)) document.body.classList.add('embed');</script>
+<div id="appVersion" style="position:fixed;right:10px;bottom:6px;font:600 14px/1 'Barlow Condensed','Arial Narrow',sans-serif;color:rgba(255,248,231,.6);background:rgba(5,10,38,.55);padding:4px 8px;border-radius:6px">v1.9</div>
+<script>if (/embed=1/.test(location.search)) { document.body.classList.add('embed'); document.getElementById('appVersion').remove(); }</script>
 </body>
 </html>
